@@ -20,9 +20,9 @@ class PDub : public QApplication
         PDub(int &argc, char *argv[]);
 
     private:
-        std::unique_ptr<Window_Control_t> Window_Control;
-        std::unique_ptr<Window_Video_t> Window_Video;
-        std::unique_ptr<Window_Editor_t> Window_Editor;
+        Window_Control_t Window_Control;
+        Window_Video_t Window_Video;
+        Window_Editor_t Window_Editor;
 };
 
 #endif
