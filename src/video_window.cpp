@@ -5,7 +5,7 @@ Window_Video_t::Window_Video_t(Window_Control_t *Window_Control, QWidget *Window
       Window_Control_Ptr(Window_Control),
       Window_Editor_Ptr(nullptr)
 {
-    setWindowFlags(Qt::Tool | Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowMaximizeButtonHint);
+    setWindowFlags(Qt::Window | Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowMaximizeButtonHint);
     setWindowTitle("Video");
     show();
 }

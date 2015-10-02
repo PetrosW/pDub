@@ -7,6 +7,8 @@
 #include <QApplication>
 #include <QDesktopWidget>
 #include <QRect>
+#include <QScreen>
+#include <QDebug>
 
 #include <windows/control_window.hpp>
 #include <windows/video_window.hpp>

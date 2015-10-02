@@ -16,15 +16,31 @@ PDub::PDub(int &argc, char *argv[])
     QDesktopWidget Monitor;
     QSize Resolution = Monitor.availableGeometry(Monitor.primaryScreen() ).size();
 
-    /*uint16_t Width = Resolution.width() >> 1;
-    uint16_t Height = Resolution.height() * 0.6;
+    QScreen *Screen = QGuiApplication::primaryScreen();
+    QSize AvSize = Screen->availableSize();
+    qDebug() << AvSize.width();
+    qDebug() << AvSize.height();
 
-    Window_Control->setGeometry(0, 0, Width, Height);
-    Window_Control->move(0, 0);
-    //Window_Control->resize(Resolution.width() >> 1, Resolution.height() * 0.6);
 
-    Window_Video->move(0, 0);
-    Window_Video->setGeometry(Width, 0, Width, Height);
+    Window_Control.move(AvSize.width()/2, 0);
+    Window_Video.move(0, 0);
+    Window_Editor.move(0, AvSize.height()/2);
 
-    std::cout << Window_Control->width() << std::endl << Window_Control->height() << std::endl;*/
+    Window_Control.resize(200,200);
+
+    //QRect *Window_Control_Geometry = &Window_Control.frameGeometry();
+
+    qDebug() << Window_Control.frameGeometry().height();
+    qDebug() << Window_Control.frameGeometry().width();
+
+    int Frame_Height = Window_Control.frameGeometry().height() - Window_Control.height();
+    int Frame_Width = Window_Control.frameGeometry().width() - Window_Control.width();
+
+    qDebug() << Frame_Height;
+    qDebug() << Frame_Width;
+
+    Window_Control.resize(AvSize.width()/2 - Frame_Width,AvSize.height()/2 - Frame_Height);
+    Window_Video.resize(AvSize.width()/2 - Frame_Width,AvSize.height()/2 - Frame_Height);
+    Window_Editor.resize(AvSize.width() - Frame_Width,AvSize.height()/2 - Frame_Height);
+
 }
