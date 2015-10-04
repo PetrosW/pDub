@@ -8,8 +8,8 @@
 #include <QDesktopWidget>
 #include <QRect>
 #include <QScreen>
-#include <QDebug>
 
+#include <common.hpp>
 #include <windows/control_window.hpp>
 #include <windows/video_window.hpp>
 #include <windows/editor_window.hpp>
