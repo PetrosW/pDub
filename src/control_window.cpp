@@ -94,7 +94,11 @@ void Window_Control_t::createToolBar() {
 //private slots
 
 void Window_Control_t::newProject() {
-    qDebug() << "newnew";
+    QString FileName = QFileDialog::getOpenFileName(0, tr("Open a video"));
+    if (FileName.isEmpty())
+        return;
+
+    Window_Video_Ptr->firstPlay(FileName);
 }
 void Window_Control_t::loadProject() {
     qDebug() << "load";

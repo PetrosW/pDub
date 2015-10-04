@@ -1,4 +1,4 @@
-QT += multimedia gui core widgets
+QT += multimedia gui core widgets av avwidgets
 
 unix:QMAKE_CXXFLAGS += -std=c++11
 win32:CONFIG += windows c++11

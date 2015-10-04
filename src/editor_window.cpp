@@ -8,10 +8,6 @@ Window_Editor_t::Window_Editor_t(Window_Control_t *Window_Control, QWidget *Wind
     setWindowFlags(Qt::Window | Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowMaximizeButtonHint);
     setWindowTitle("Editor");
 
-    QGridLayout *layout = new QGridLayout(this);
-
-    setLayout(layout);
-
 
     show();
 }
