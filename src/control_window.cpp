@@ -32,7 +32,7 @@ void Window_Control_t::createUi() {
     setWindowTitle("pDub");
     MainWidget = new QWidget(this);
     this->setCentralWidget(MainWidget);
-    Layout = new QGridLayout(this);
+    Layout = new QGridLayout(MainWidget);
     Layout->setSizeConstraint(QLayout::SetMinAndMaxSize);
     Layout->setColumnMinimumWidth(0, 100);
     MainWidget->setLayout(Layout);
