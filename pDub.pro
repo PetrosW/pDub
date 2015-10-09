@@ -19,7 +19,10 @@ HEADERS = include/common.hpp \
           include/record.hpp \
           include/windows/control_window.hpp \
           include/windows/video_window.hpp \
-          include/windows/editor_window.hpp
+          include/windows/editor_window.hpp \
+          include/ffmpeg/error_codes.hpp \
+          include/ffmpeg/exception.hpp \
+          include/ffmpeg/ffmpeg.hpp
 
 
 
@@ -29,4 +32,6 @@ SOURCES = src/main.cpp \
           src/video_window.cpp \
           src/editor_window.cpp \
           src/microphone.cpp \
-          src/record.cpp
+          src/record.cpp \
+          src/ffmpeg/exception.cpp \
+          src/ffmpeg/ffmpeg.cpp
