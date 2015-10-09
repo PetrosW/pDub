@@ -13,6 +13,8 @@ MOC_DIR = objects
 
 INCLUDEPATH += include
 
+LIBS += -lavcodec -lavformat -lavutil
+
 HEADERS = include/common.hpp \
           include/pdub.hpp \
           include/microphone.hpp \

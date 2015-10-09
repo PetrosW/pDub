@@ -1,7 +1,7 @@
 #include <ffmpeg/ffmpeg.hpp>
 #include <iostream>
 
-Ffmpeg_t::Ffmpeg_t() : Packet({0}), SampleBuffer{0}, SampleCount(0)
+Ffmpeg_t::Ffmpeg_t() : SampleBuffer{}, SampleCount(0)
 {
     av_register_all();
 }
