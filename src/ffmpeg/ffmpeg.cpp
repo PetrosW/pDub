@@ -28,9 +28,10 @@ void Ffmpeg_t::splitTrack(std::string FileName, uint64_t SplitDuration_1, uint64
 {
     if (!SplitDuration_1) throw FfmpegException_t(FfmpegErrorCode::SPLIT_DURATION_1_EMPTY, 0);
     
-    std::string SplitFile_1 = FileName;
-    std::string SplitFile_2 = FileName;
+    std::string SplitFile_1, SplitFile_2;
+    SplitFile_1 = SplitFile_2 = FileName;
     
+    // Creating file names for split tracks
     SplitFile_1.replace(SplitFile_1.find_last_of("."), 1, "_1.");
     SplitFile_2.replace(SplitFile_2.find_last_of("."), 1, "_2.");
     
@@ -63,6 +64,8 @@ void Ffmpeg_t::splitTrack(std::string FileName, uint64_t SplitDuration_1, uint64
         throw FfmpegException_t(FfmpegErrorCode::CONTAINER_IN_STREAM_NOT_AUDIO, 0);
     }
     
+    av_init_packet(&Packet);
+    
     av_dump_format(Container_In, 0, FileName.c_str(), 0);
     
     writePacketsToFile(SplitFile_1, SplitDuration_1);
@@ -94,10 +97,12 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration
         throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_COPY_CODEC_CONTEXT, ErrCode);
     }
     
+    // Output stream has the same time base as input since they share properties
     Stream_Out->time_base = Container_In->streams[0]->time_base;
     Stream_Out->codec->codec_tag = 0;
     if (Container_Out->oformat->flags & AVFMT_GLOBALHEADER) Stream_Out->codec->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
     
+    // If output needs a file, open it
     if (!(Container_Out->oformat->flags & AVFMT_NOFILE) )
     {
         ErrCode = avio_open(&Container_Out->pb, SplitFile.c_str(), AVIO_FLAG_WRITE);
@@ -108,14 +113,13 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration
         }
     }
     
+    // Writing header info about streams to file
     ErrCode = avformat_write_header(Container_Out, nullptr);
     if (ErrCode < 0)
     {
         cleanUp_SplitTrack(FfmpegCleanUpLevelCode::LEVEL_AVIO);
         throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_WRITE_HEADER, ErrCode);
     }
-    
-    av_init_packet(&Packet);
     
     /* ##### CONTAINER READY ##### */
     
@@ -127,7 +131,7 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration
      * 3) we reached the desired duration
      * ----------------------------------
      * (Duration < SplitDuration) || (!SplitDuration)
-     * - SplitDuration = 0 -> (Duration < SplitDuration) == false -> until EOF
+     * - SplitDuration == 0 -> (Duration < SplitDuration) == false -> until EOF
      * - SplitDuration > 0 -> until (Duration < SplitDuration) == false -> until desired duration reached
      */
     while ( (!ErrCode) && ( (Duration < SplitDuration) || (!SplitDuration) ) )
@@ -149,18 +153,31 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration
             Packet.dts = Duration;
         }
         
+        /* SampleBuffer is not empty, which means the file was split
+         * somewhere in the packet, so the remaining samples are in the SampleBuffer.
+         * They need to be put before samples from the currently obtained packet.
+         */
         if (SampleCount)
         {
-            uint8_t TmpBuffer[4092];
+            uint8_t TmpBuffer[(PACKET_WAV_SAMPLE_COUNT - 1) * 4]; // 1 sample for 1 channel = 16 bits * 2 channels = 4B
+            const uint16_t PacketMaxSampleCountMinusSampleCount = PACKET_WAV_SAMPLE_COUNT - SampleCount; // It repeats, saving some time
             
-            if (Packet.duration < 1024)
+            /* If the currently obtained packet is not full, it means it's the last one. There's not
+             * enough space allocated in the packet to hold any additional samples from the SampleBuffer,
+             * therefore we need to allocated a completely new packet with enough space.
+             */
+            if (Packet.duration < PACKET_WAV_SAMPLE_COUNT)
             {
                 int64_t PacketDuration = Packet.duration;
-                memcpy(TmpBuffer, Packet.data, PacketDuration << 2);
+                memcpy(TmpBuffer, Packet.data, PacketDuration << 2); // == PacketDuration * 4
                 av_free_packet(&Packet);
                 
-                const bool Condition = ( (PacketDuration + SampleCount) > 1024);
+                /* Are samples from the obtained packet and SampleBuffer together larger than a packet?
+                 * Saving some time since it repeats
+                 */
+                const bool Condition = ( (PacketDuration + SampleCount) > PACKET_WAV_SAMPLE_COUNT);
                 
+                // Allocate exact space if data is smaller than a regular packet, or allocate packet size if it's larger
                 ErrCode = av_new_packet(&Packet, (Condition ? 4096 : (PacketDuration + SampleCount) << 2) );
                 if (ErrCode)
                 {
@@ -172,36 +189,47 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration
                 Packet.pts = Duration;
                 Packet.dts = Duration;
                 
+                // Copying samples from SampleBuffer followed by samples from the last packet
                 memcpy(Packet.data, SampleBuffer, SampleCount << 2);
-                memcpy(Packet.data + (SampleCount << 2), TmpBuffer, (Condition ? (1024 - SampleCount) << 2 : PacketDuration << 2) );
+                memcpy(Packet.data + (SampleCount << 2), TmpBuffer, (Condition ? PacketMaxSampleCountMinusSampleCount << 2 : PacketDuration << 2) );
                 
+                // If true, data > packet, meaning there are samples left in the SampleBuffer, needs to be flushed
                 if (Condition)
                 {
-                    memcpy(SampleBuffer, TmpBuffer + ( (1024 - SampleCount) << 2), (PacketDuration - (1024 - SampleCount) ) << 2 );
-                    Packet.duration = 1024;
-                    SampleCount = PacketDuration - (1024 - SampleCount);
+                    memcpy(SampleBuffer, TmpBuffer + (PacketMaxSampleCountMinusSampleCount << 2), (PacketDuration - PacketMaxSampleCountMinusSampleCount) << 2 );
+                    Packet.duration = PACKET_WAV_SAMPLE_COUNT;
+                    SampleCount = PacketDuration - PacketMaxSampleCountMinusSampleCount;
                 }
-                else
+                else // Everything was able to fit into the last allocated packet
                 {
                     Packet.duration = PacketDuration + SampleCount;
                     SampleCount = 0;
                 }
             }
+            /* Obtained packet is full, which means we need to copy out SampleCount samples from the end to TmpBuffer,
+             * shift 1024 - SampleCount samples from the beginning to the end of the packet, copy in samples from SampleBuffer
+             * to the beginning of the packet and overwrite samples in SampleBuffer with those in TmpBuffer.
+             * Improvement: instead of the last overwrite, buffers are just switched
+             */
             else
             {
-                memcpy(TmpBuffer, Packet.data + ( (1024 - SampleCount) << 2), SampleCount << 2);
-                memmove(Packet.data + (SampleCount << 2), Packet.data, (1024 - SampleCount) << 2);
+                memcpy(TmpBuffer, Packet.data + (PacketMaxSampleCountMinusSampleCount << 2), SampleCount << 2);
+                memmove(Packet.data + (SampleCount << 2), Packet.data, PacketMaxSampleCountMinusSampleCount << 2);
                 memcpy(Packet.data, SampleBuffer, SampleCount << 2);
-                memcpy(SampleBuffer, TmpBuffer, SampleCount << 2);
+                std::swap(TmpBuffer, SampleBuffer); // == memcpy(SampleBuffer, TmpBuffer, SampleCount << 2);
             }
         }
         
+        /* When we're proccesing the first file (SplitDuration > 0) and we would exceed the desired
+         * duration if we were to write the whole packet, it's necessary to write only a part of the packet
+         */
         if ( SplitDuration && ( (Duration + Packet.duration) > SplitDuration) )
         {
             Packet.duration = SplitDuration - Duration;
-            Packet.size = Packet.duration << 2; // Packet.duration * 4, 1 sample for 1 channel = 16 bits * 2 channels = 4B
+            Packet.size = Packet.duration << 2;
             
-            SampleCount = 1024 - Packet.duration; // 1024 samples form one packet
+            // Put the leftover samples in the SampleBuffer
+            SampleCount = PACKET_WAV_SAMPLE_COUNT - Packet.duration;
             std::memcpy(SampleBuffer, Packet.data + (Packet.duration << 2), SampleCount << 2);
         }
         
@@ -218,7 +246,10 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration
         av_free_packet(&Packet);
     }
     
-    // When SplitDuration == 0 (flushing rest of the audio) and SampleBuffer holds samples, we want to empty the buffer
+    /* When SplitDuration == 0 (flushing rest of the audio) and SampleBuffer holds samples,
+     * we want to empty the buffer. Since input file is already depleted,
+     * we need to allocate a new packet.
+     */
     if (!SplitDuration && SampleCount)
     {
         ErrCode = av_new_packet(&Packet, SampleCount << 2);
@@ -247,6 +278,7 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration
         SampleCount = 0;
     }
     
+    // Finish the stream data input
     ErrCode = av_write_trailer(Container_Out);
     if (ErrCode != 0)
     {

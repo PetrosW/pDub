@@ -5,14 +5,16 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
-#include <memory>
 #include <string>
+#include <utility>
 #include "exception.hpp"
 
 extern "C" {
     #include <libavcodec/avcodec.h>
     #include <libavformat/avformat.h>
 }
+
+#define PACKET_WAV_SAMPLE_COUNT 1024 // 1024 samples form one packet
 
 namespace FfmpegCleanUpLevelCode {
     enum Type:std::uint8_t {
@@ -41,7 +43,7 @@ class Ffmpeg_t
         
         AVPacket Packet;
         
-        uint8_t SampleBuffer[4092];
+        uint8_t SampleBuffer[(PACKET_WAV_SAMPLE_COUNT - 1) * 4];
         uint16_t SampleCount;
         
         void writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration);
