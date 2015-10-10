@@ -14,6 +14,15 @@ extern "C" {
     #include <libavformat/avformat.h>
 }
 
+namespace FfmpegCleanUpLevelCode {
+    enum Type:std::uint8_t {
+        // for Ffmpeg_t::cleanUp_SplitTrack()
+        LEVEL_AVIO,
+        LEVEL_AVFORMAT_CONTEXT,
+        LEVEL_AVFORMAT_INPUT
+    };
+}
+
 class Ffmpeg_t
 {
     public:
@@ -36,6 +45,7 @@ class Ffmpeg_t
         uint16_t SampleCount;
         
         void writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration);
+        void cleanUp_SplitTrack(FfmpegCleanUpLevelCode::Type Level, bool CloseInput = 1);
 };
 
 #endif

@@ -1,9 +1,27 @@
 #include <ffmpeg/ffmpeg.hpp>
-#include <iostream>
 
-Ffmpeg_t::Ffmpeg_t() : Packet{}, SampleBuffer{}, SampleCount(0)
+Ffmpeg_t::Ffmpeg_t() : Packet{}, SampleCount(0)
 {
     av_register_all();
+}
+
+void Ffmpeg_t::cleanUp_SplitTrack(FfmpegCleanUpLevelCode::Type Level, bool CloseInput)
+{
+    switch (Level)
+    {
+        case FfmpegCleanUpLevelCode::LEVEL_AVIO:
+            avio_closep(&Container_Out->pb);
+        
+        case FfmpegCleanUpLevelCode::LEVEL_AVFORMAT_CONTEXT:
+            avformat_free_context(Container_Out);
+        
+        case FfmpegCleanUpLevelCode::LEVEL_AVFORMAT_INPUT:
+            if (CloseInput) avformat_close_input(&Container_In);
+        break;
+        
+        default:
+        return;
+    }
 }
 
 void Ffmpeg_t::splitTrack(std::string FileName, uint64_t SplitDuration_1, uint64_t SplitDuration_2)
@@ -23,7 +41,6 @@ void Ffmpeg_t::splitTrack(std::string FileName, uint64_t SplitDuration_1, uint64
     Container_In = avformat_alloc_context();
     if (!Container_In) throw FfmpegException_t(FfmpegErrorCode::CONTAINER_IN_ALLOC, 0);
     
-    
     int32_t ErrCode = avformat_open_input(&Container_In, FileName.c_str(), nullptr, nullptr);
     if (ErrCode < 0)
     {
@@ -34,7 +51,7 @@ void Ffmpeg_t::splitTrack(std::string FileName, uint64_t SplitDuration_1, uint64
     ErrCode = avformat_find_stream_info(Container_In, nullptr);
     if (ErrCode < 0)
     {
-        avformat_close_input(&Container_In);
+        cleanUp_SplitTrack(FfmpegCleanUpLevelCode::LEVEL_AVFORMAT_INPUT);
         throw FfmpegException_t(FfmpegErrorCode::CONTAINER_IN_STREAM_INFO, ErrCode);
     }
     
@@ -42,7 +59,7 @@ void Ffmpeg_t::splitTrack(std::string FileName, uint64_t SplitDuration_1, uint64
     
     if (Container_In->streams[0]->codec->codec_type != AVMEDIA_TYPE_AUDIO)
     {
-        avformat_close_input(&Container_In);
+        cleanUp_SplitTrack(FfmpegCleanUpLevelCode::LEVEL_AVFORMAT_INPUT);
         throw FfmpegException_t(FfmpegErrorCode::CONTAINER_IN_STREAM_NOT_AUDIO, 0);
     }
     
@@ -59,23 +76,21 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration
     int32_t ErrCode = avformat_alloc_output_context2(&Container_Out, nullptr, nullptr, SplitFile.c_str() );
     if (ErrCode < 0)
     {
-        avformat_close_input(&Container_In);
+        cleanUp_SplitTrack(FfmpegCleanUpLevelCode::LEVEL_AVFORMAT_INPUT);
         throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_ALLOC, ErrCode);
     }
     
     AVStream *Stream_Out = avformat_new_stream(Container_Out, Container_In->streams[0]->codec->codec);
     if (!Stream_Out)
     {
-        avformat_free_context(Container_Out);
-        avformat_close_input(&Container_In);
+        cleanUp_SplitTrack(FfmpegCleanUpLevelCode::LEVEL_AVFORMAT_CONTEXT);
         throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_NEW_STREAM, 0);
     }
     
     ErrCode = avcodec_copy_context(Stream_Out->codec, Container_In->streams[0]->codec);
     if (ErrCode < 0)
     {
-        avformat_free_context(Container_Out);
-        avformat_close_input(&Container_In);
+        cleanUp_SplitTrack(FfmpegCleanUpLevelCode::LEVEL_AVFORMAT_CONTEXT);
         throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_COPY_CODEC_CONTEXT, ErrCode);
     }
     
@@ -88,8 +103,7 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration
         ErrCode = avio_open(&Container_Out->pb, SplitFile.c_str(), AVIO_FLAG_WRITE);
         if (ErrCode < 0)
         {
-            avformat_free_context(Container_Out);
-            avformat_close_input(&Container_In);
+            cleanUp_SplitTrack(FfmpegCleanUpLevelCode::LEVEL_AVFORMAT_CONTEXT);
             throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_OPEN_FILE, ErrCode);
         }
     }
@@ -97,9 +111,7 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration
     ErrCode = avformat_write_header(Container_Out, nullptr);
     if (ErrCode < 0)
     {
-        avio_closep(&Container_Out->pb);
-        avformat_free_context(Container_Out);
-        avformat_close_input(&Container_In);
+        cleanUp_SplitTrack(FfmpegCleanUpLevelCode::LEVEL_AVIO);
         throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_WRITE_HEADER, ErrCode);
     }
     
@@ -126,9 +138,7 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration
             if (ErrCode == AVERROR_EOF) continue;
             else
             {
-                avio_closep(&Container_Out->pb);
-                avformat_free_context(Container_Out);
-                avformat_close_input(&Container_In);
+                cleanUp_SplitTrack(FfmpegCleanUpLevelCode::LEVEL_AVIO);
                 throw FfmpegException_t(FfmpegErrorCode::CONTAINER_IN_READ_FRAME, ErrCode);
             }
         }
@@ -154,9 +164,7 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration
                 ErrCode = av_new_packet(&Packet, (Condition ? 4096 : (PacketDuration + SampleCount) << 2) );
                 if (ErrCode)
                 {
-                    avio_closep(&Container_Out->pb);
-                    avformat_free_context(Container_Out);
-                    avformat_close_input(&Container_In);
+                    cleanUp_SplitTrack(FfmpegCleanUpLevelCode::LEVEL_AVIO);
                     throw FfmpegException_t(FfmpegErrorCode::PACKET_ALLOC, ErrCode);
                 }
                 
@@ -203,9 +211,7 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration
         ErrCode = av_interleaved_write_frame(Container_Out, &Packet);
         if (ErrCode < 0)
         {
-            avio_closep(&Container_Out->pb);
-            avformat_free_context(Container_Out);
-            avformat_close_input(&Container_In);
+            cleanUp_SplitTrack(FfmpegCleanUpLevelCode::LEVEL_AVIO);
             throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_WRITE_FRAME, ErrCode);
         }
         
@@ -218,9 +224,7 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration
         ErrCode = av_new_packet(&Packet, SampleCount << 2);
         if (ErrCode < 0)
         {
-            avio_closep(&Container_Out->pb);
-            avformat_free_context(Container_Out);
-            avformat_close_input(&Container_In);
+            cleanUp_SplitTrack(FfmpegCleanUpLevelCode::LEVEL_AVIO);
             throw FfmpegException_t(FfmpegErrorCode::PACKET_ALLOC, ErrCode);
         }
         
@@ -235,9 +239,7 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration
         ErrCode = av_interleaved_write_frame(Container_Out, &Packet);
         if (ErrCode < 0)
         {
-            avio_closep(&Container_Out->pb);
-            avformat_free_context(Container_Out);
-            avformat_close_input(&Container_In);
+            cleanUp_SplitTrack(FfmpegCleanUpLevelCode::LEVEL_AVIO);
             throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_WRITE_FRAME, ErrCode);
         }
         
@@ -248,12 +250,9 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration
     ErrCode = av_write_trailer(Container_Out);
     if (ErrCode != 0)
     {
-        avio_closep(&Container_Out->pb);
-        avformat_free_context(Container_Out);
-        avformat_close_input(&Container_In);
+        cleanUp_SplitTrack(FfmpegCleanUpLevelCode::LEVEL_AVIO);
         throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_WRITE_TRAILER, ErrCode);
     }
     
-    avio_closep(&Container_Out->pb);
-    avformat_free_context(Container_Out);
+    cleanUp_SplitTrack(FfmpegCleanUpLevelCode::LEVEL_AVIO, false);
 }
