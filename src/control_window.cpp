@@ -5,12 +5,13 @@ Window_Control_t::Window_Control_t(QMainWindow *parent) : QMainWindow(parent), W
 
     createUi();
     createToolBar();
-    newMicrophone();
     show();
     //nahození za jízdy, čili za show funguje
     /*QPushButton *button = new QPushButton("Hello");
     layout->addWidget(button);*/
 }
+
+//public
 
 void Window_Control_t::setWindowEditorPtr(Window_Editor_t *Window_Editor)
 {
@@ -22,8 +23,15 @@ void Window_Control_t::setWindowVideoPtr(Window_Video_t *Window_Video)
     Window_Video_Ptr = Window_Video;
 }
 
+void Window_Control_t::setDeafaultMicrophone(){
+    newMicrophone();
+}
+
+//private
+
 void Window_Control_t::newMicrophone() {
-    Microphone *mic1 = new Microphone(this);
+    Microphone *mic1 = new Microphone(Window_Video_Ptr, this);
+    connect(mic1, SIGNAL(recordingEnd(int,int,QString)), Window_Editor_Ptr, SLOT(addNewRecordObject(int,int,QString)));
     Layout->addWidget(mic1,0,1);
     Layout->setColumnMinimumWidth(1, 100);
 }
@@ -38,11 +46,9 @@ void Window_Control_t::createUi() {
     MainWidget->setLayout(Layout);
 
 
-    QGridLayout *ControlLayout = new QGridLayout();
+    ControlLayout = new QGridLayout();
     Layout->addLayout(ControlLayout, 0, 0);
 
-    QPushButton *test = new QPushButton("test");
-    ControlLayout->addWidget(test, 0, 0);
 
 
 

@@ -19,7 +19,7 @@ class Record : public QWidget
         int Id;
         int StartTime;
         int EndTime;
-        int Name;
+        QString Name;
 
 };
 

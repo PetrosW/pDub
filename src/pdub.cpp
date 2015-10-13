@@ -13,8 +13,8 @@ PDub::PDub(int &argc, char *argv[])
 
     Window_Video.setWindowEditorPtr(&Window_Editor);
 
-    QDesktopWidget Monitor;
-    QSize Resolution = Monitor.availableGeometry(Monitor.primaryScreen() ).size();
+//    QDesktopWidget Monitor;
+//    QSize Resolution = Monitor.availableGeometry(Monitor.primaryScreen() ).size();
 
     QScreen *Screen = QGuiApplication::primaryScreen();
     QSize AvSize = Screen->availableSize();
@@ -46,5 +46,7 @@ PDub::PDub(int &argc, char *argv[])
     Window_Control.resize(AvSize.width()/2 - Frame_Width, AvSize.height()/2 - Frame_Height);
     Window_Video.resize(AvSize.width()/2 - Frame_Width, AvSize.height()/2 - Frame_Height);
     Window_Editor.resize(AvSize.width() - Frame_Width, AvSize.height()/2 - Frame_Height);
+
+    Window_Control.setDeafaultMicrophone();
 
 }

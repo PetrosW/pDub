@@ -2,6 +2,8 @@
 #define MICROPHONE_HPP
 
 #include <common.hpp>
+#include <windows/video_window.hpp>
+
 #include <QWidget>
 #include <QtWidgets>
 #include <QDir>
@@ -14,20 +16,36 @@ class Microphone : public QWidget
     Q_OBJECT
 
     public:
-        Microphone(QWidget *parent = 0);
+        Microphone(Window_Video_t *Window_Video_ptr, QWidget *parent = 0);
         ~Microphone();
+
+
+
     private:
         void createUi();
 
+        Window_Video_t *Window_Video_Ptr;
         QAudioRecorder *AudioRecorder;
+        QTimer *TimerRecord;
 
         QGridLayout *Layout;
+        QLabel *LabelStartTime;
+        QLabel *LabelEndTime;
+        QLabel *LabelDurationTime;
         QPushButton *ButtonRecord;
         QPushButton *ButtonPause;
+
+        int DurationTime;
+        int StartTime;
+        int EndTime;
 
     private slots:
         void startRecord();
         void stopRecord();
+        void timerRecordTick();
+
+    signals:
+        void recordingEnd(int StartTime, int EndTime, QString Name);
 };
 
 #endif // MICROPHONE

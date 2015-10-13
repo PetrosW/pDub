@@ -16,3 +16,11 @@ void Window_Editor_t::setWindowVideoPtr(Window_Video_t *Window_Video)
 {
     Window_Video_Ptr = Window_Video;
 }
+
+//public slots
+
+void Window_Editor_t::addNewRecordObject(int StartTime, int EndTime, QString Name) {
+    qDebug() << StartTime;
+    qDebug() << EndTime;
+    qDebug() << Name;
+}

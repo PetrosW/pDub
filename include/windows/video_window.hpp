@@ -5,7 +5,6 @@
 #include <QtWidgets>
 #include <QtAV>
 #include <QtAVWidgets>
-#include <QtCore/qmath.h>
 
 #include <common.hpp>
 #include <windows/control_window.hpp>
@@ -20,6 +19,7 @@ class Window_Video_t : public QWidget
         void setWindowEditorPtr(Window_Editor_t *Window_Editor);
 
         void firstPlay(QString FileName);
+        int getPlayerPosition();
 
     private:
         Window_Control_t *Window_Control_Ptr;

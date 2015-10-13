@@ -5,6 +5,8 @@
 #include <QObject>
 #include <cstdint>
 
+#include <QtCore/qmath.h>
+
 
 class Window_Control_t;
 class Window_Editor_t;
@@ -15,5 +17,7 @@ namespace PDubReturnValues {
 		NO_MEMORY = 1
 	};
 }
+
+QString miliSecToTime(int miliSec);
 
 #endif

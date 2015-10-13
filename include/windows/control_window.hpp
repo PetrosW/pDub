@@ -19,6 +19,7 @@ class Window_Control_t : public QMainWindow
         Window_Control_t(QMainWindow *parent = 0);
         void setWindowEditorPtr(Window_Editor_t *Window_Editor);
         void setWindowVideoPtr(Window_Video_t *Window_Video);
+        void setDeafaultMicrophone();
 
     private:
         Window_Editor_t *Window_Editor_Ptr;
@@ -26,6 +27,8 @@ class Window_Control_t : public QMainWindow
 
         QWidget *MainWidget;
         QGridLayout *Layout;
+        QGridLayout *ControlLayout;
+
 
         void newMicrophone();
         void createUi();

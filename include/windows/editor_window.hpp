@@ -16,8 +16,16 @@ class Window_Editor_t : public QWidget
         void setWindowVideoPtr(Window_Video_t *Window_Video);
 
     private:
+
         Window_Control_t *Window_Control_Ptr;
         Window_Video_t *Window_Video_Ptr;
+
+        QGridLayout *ControlLayout;
+        QGridLayout *RecordObjectsLayout;
+
+    public slots:
+
+        void addNewRecordObject(int StartTime, int EndTime, QString Name);
 };
 
 #endif

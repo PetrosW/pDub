@@ -45,7 +45,7 @@ void Window_Video_t::createUi() {
     SliderVideoTime = new QSlider(Qt::Horizontal, this);
     SliderVideoTime->setMinimum(0);
 
-    SliderVideoTime->setTickInterval(0);
+    SliderVideoTime->setTickInterval(1);
     connect(SliderVideoTime, SIGNAL(sliderMoved(int)), this, SLOT(updateVideoTimePositionSliderMove(int)));
     connect(Player, SIGNAL(positionChanged(qint64)), this, SLOT(updateSilderTimeValue(qint64)));
 
@@ -89,6 +89,10 @@ void Window_Video_t::createUi() {
 
 }
 
+int Window_Video_t::getPlayerPosition() {
+    return int(Player->position());
+}
+
 // private slots
 void Window_Video_t::playInit() {
     SliderVideoTime->setMaximum(Player->duration());
@@ -122,10 +126,7 @@ void Window_Video_t::updateVideoTimePositionSliderPressed() {
 
 void Window_Video_t::updateSilderTimeValue(qint64 newSliderPosition) {
     SliderVideoTime->setValue(newSliderPosition);
-    LabelVideoTime->setText(QString("%1:%2:%3")
-                            .arg(qFloor(newSliderPosition / 1000 / 60 / 60), 2, 10, QChar('0'))
-                            .arg(qFloor(newSliderPosition / 1000 / 60) % 60, 2, 10, QChar('0'))
-                            .arg(fmod(double(newSliderPosition) / double(1000), 60), 5, 'f', 2, QChar('0')));
+    LabelVideoTime->setText(miliSecToTime(newSliderPosition));
 }
 
 void Window_Video_t::seekBackward() {
