@@ -10,7 +10,11 @@ FfmpegException_t::FfmpegException_t(FfmpegErrorCode::Type ErrCode, int32_t Ffmp
     }
 }
 
-const char *FfmpegException_t::what() const noexcept
+#if defined(_WIN32) && _MSC_VER <= 1800
+    const char *FfmpegException_t::what() const
+#else
+    const char *FfmpegException_t::what() const noexcept
+#endif
 {
     return ErrorMessage.c_str();
 }
