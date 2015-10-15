@@ -28,9 +28,13 @@ void Ffmpeg_t::cleanUp_SplitTrack(FfmpegCleanUpLevelCode::Type Level, bool Close
 uint64_t Ffmpeg_t::getAudioDuration(std::string FileName)
 {
     initInputFileAudio(FileName);
-    double SampleRate = Container_In->streams[0]->codec->sample_rate;
     
-    return std::llround( (Container_In->streams[0]->duration / SampleRate) * 1000);
+    double SampleRate = Container_In->streams[0]->codec->sample_rate;
+    uint64_t Duration_miliseconds = std::llround( (Container_In->streams[0]->duration / SampleRate) * 1000);
+    
+    avformat_close_input(&Container_In);
+    
+    return Duration_miliseconds;
 }
 
 void Ffmpeg_t::initInputFileAudio(std::string &FileName)
