@@ -1,4 +1,5 @@
 #include <ffmpeg/ffmpeg.hpp>
+#include <iostream>
 
 Ffmpeg_t::Ffmpeg_t() : Packet{}, SampleCount(0)
 {
@@ -24,21 +25,16 @@ void Ffmpeg_t::cleanUp_SplitTrack(FfmpegCleanUpLevelCode::Type Level, bool Close
     }
 }
 
-void Ffmpeg_t::splitTrack(std::string FileName, uint64_t SplitDuration_1, uint64_t SplitDuration_2)
+uint64_t Ffmpeg_t::getAudioDuration(std::string FileName)
 {
-    if (!SplitDuration_1) throw FfmpegException_t(FfmpegErrorCode::SPLIT_DURATION_1_EMPTY, 0);
+    initInputFileAudio(FileName);
+    double SampleRate = Container_In->streams[0]->codec->sample_rate;
     
-    std::string SplitFile_1, SplitFile_2;
-    SplitFile_1 = SplitFile_2 = FileName;
-    
-    // Creating file names for split tracks
-    SplitFile_1.replace(SplitFile_1.find_last_of("."), 1, "_1.");
-    SplitFile_2.replace(SplitFile_2.find_last_of("."), 1, "_2.");
-    
-    // Transforming miliseconds to sample count (44.1 samples = 1 ms when 44100 KHz sampling freq)
-    SplitDuration_1 = std::llround(SplitDuration_1 * 44.1);
-    SplitDuration_2 = std::llround(SplitDuration_2 * 44.1);
-    
+    return std::llround( (Container_In->streams[0]->duration / SampleRate) * 1000);
+}
+
+void Ffmpeg_t::initInputFileAudio(std::string &FileName)
+{
     Container_In = avformat_alloc_context();
     if (!Container_In) throw FfmpegException_t(FfmpegErrorCode::CONTAINER_IN_ALLOC, 0);
     
@@ -65,11 +61,28 @@ void Ffmpeg_t::splitTrack(std::string FileName, uint64_t SplitDuration_1, uint64
     }
     
     av_init_packet(&Packet);
+}
+
+void Ffmpeg_t::splitTrack(std::string FileName, uint64_t SplitDuration)
+{
+    if (!SplitDuration) throw FfmpegException_t(FfmpegErrorCode::SPLIT_DURATION_1_EMPTY, 0);
+    
+    std::string SplitFile_1, SplitFile_2;
+    SplitFile_1 = SplitFile_2 = FileName;
+    
+    // Creating file names for split tracks
+    SplitFile_1.replace(SplitFile_1.find_last_of("."), 1, "_1.");
+    SplitFile_2.replace(SplitFile_2.find_last_of("."), 1, "_2.");
+    
+    // Transforming miliseconds to sample count (44.1 samples = 1 ms when 44100 KHz sampling freq)
+    SplitDuration = std::llround(SplitDuration * 44.1);
+    
+    initInputFileAudio(FileName);
     
     av_dump_format(Container_In, 0, FileName.c_str(), 0);
     
-    writePacketsToFile(SplitFile_1, SplitDuration_1);
-    writePacketsToFile(SplitFile_2, SplitDuration_2);
+    writePacketsToFile(SplitFile_1, SplitDuration);
+    writePacketsToFile(SplitFile_2, 0);
     
     avformat_close_input(&Container_In);
 }

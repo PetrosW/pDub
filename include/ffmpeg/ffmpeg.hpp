@@ -29,7 +29,8 @@ class Ffmpeg_t
 {
     public:
         Ffmpeg_t();
-        void splitTrack(std::string FileName, uint64_t SplitDuration_1, uint64_t SplitDuration_2 = 0);
+        void splitTrack(std::string FileName, uint64_t SplitDuration);
+        uint64_t getAudioDuration(std::string FileName);
     
     private:
         //AVCodec *Codec_In;
@@ -46,6 +47,7 @@ class Ffmpeg_t
         uint8_t SampleBuffer[(PACKET_WAV_SAMPLE_COUNT - 1) * 4];
         uint16_t SampleCount;
         
+        void initInputFileAudio(std::string &FileName);
         void writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration);
         void cleanUp_SplitTrack(FfmpegCleanUpLevelCode::Type Level, bool CloseInput = 1);
 };
