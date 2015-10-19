@@ -22,7 +22,7 @@ Window_Video_t::Window_Video_t(Window_Control_t *Window_Control, QWidget *Window
     Player->setRenderer(VideoOutput);
     Player->audio()->setVolume(0.8);
     Player->setSeekType(QtAV::AccurateSeek);
-    connect(Player, SIGNAL(loaded()), this, SLOT(playInit()));
+    connect(Player, &QtAV::AVPlayer::started, this, &Window_Video_t::playInit);
     Layout->addWidget(VideoOutput->widget(), 0, 0);
 
     createUi();
@@ -49,7 +49,6 @@ void Window_Video_t::createUi() {
     connect(SliderVideoTime, SIGNAL(sliderMoved(int)), this, SLOT(updateVideoTimePositionSliderMove(int)));
     connect(Player, SIGNAL(positionChanged(qint64)), this, SLOT(updateSilderTimeValue(qint64)));
 
-
     Layout->addWidget(SliderVideoTime, 1, 0);
 
     LayoutVideoControl = new QGridLayout();
@@ -66,8 +65,8 @@ void Window_Video_t::createUi() {
     connect(ButtonSeekBackward, SIGNAL(pressed()), this, SLOT(seekBackward()));
     LayoutVideoControl->addWidget(ButtonSeekBackward, 0, 1);
 
-    ButtonPlay = new QPushButton("Pause", this);
-    connect(ButtonPlay, SIGNAL(clicked()), this, SLOT(pause()));
+    ButtonPlay = new QPushButton("Play", this);
+    connect(ButtonPlay, SIGNAL(clicked()), this, SLOT(play()));
     ButtonPlay->setEnabled(false);
     LayoutVideoControl->addWidget(ButtonPlay, 0, 2);
 
@@ -85,8 +84,6 @@ void Window_Video_t::createUi() {
     connect(SliderVideoVolume, SIGNAL(valueChanged(int)), this, SLOT(setVolume(int)));
     LayoutVideoControl->addWidget(SliderVideoVolume, 0, 4);
 
-
-
 }
 
 int Window_Video_t::getPlayerPosition() {
@@ -96,6 +93,13 @@ int Window_Video_t::getPlayerPosition() {
 // private slots
 void Window_Video_t::playInit() {
     SliderVideoTime->setMaximum(Player->duration());
+    Window_Editor_Ptr->setAfterVideoLoad(Player->duration());
+    while (!Player->isPlaying() || !Player->isPaused()) {
+        if (Player->isPlaying()) {
+            Player->setPosition(qint64(0));
+            Player->pause(true);
+        }
+    }
 }
 
 void Window_Video_t::play() {

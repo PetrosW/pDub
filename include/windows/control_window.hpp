@@ -10,6 +10,7 @@
 #include <microphone.hpp>
 #include <windows/editor_window.hpp>
 #include <windows/video_window.hpp>
+#include <dialogs/newproject_dialog.hpp>
 
 class Window_Control_t : public QMainWindow
 {
@@ -20,6 +21,8 @@ class Window_Control_t : public QMainWindow
         void setWindowEditorPtr(Window_Editor_t *Window_Editor);
         void setWindowVideoPtr(Window_Video_t *Window_Video);
         void setDeafaultMicrophone();
+
+        int NextRecordId;
 
     private:
         Window_Editor_t *Window_Editor_Ptr;
@@ -39,8 +42,15 @@ class Window_Control_t : public QMainWindow
         QAction *A_saveProject;
         QAction *A_exportProject;
 
+        QString ProjectName;
+        QString VideoFilePath;
+        QString ProjectFolder;
+        QString TmpPath;
+        QString RecordPath;
+
     private slots:
-        void newProject();
+        void newProject(QString projectName, QString videoFilePath, QString projectFolder);
+        void newProjectDialog();
         void loadProject();
         void saveProject();
         void exportProject();

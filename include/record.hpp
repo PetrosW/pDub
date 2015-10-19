@@ -11,7 +11,7 @@ class Record : public QWidget
     Q_OBJECT
 
     public:
-        Record();
+        Record(int id, int startTime, int endTime, QString name, QWidget *parent = 0);
         ~Record();
 
     private:

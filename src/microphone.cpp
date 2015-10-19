@@ -1,7 +1,8 @@
 #include <microphone.hpp>
 
-Microphone::Microphone(Window_Video_t *Window_Video_ptr, QWidget *parent)
+Microphone::Microphone(Window_Control_t *Window_Control_ptr, Window_Video_t *Window_Video_ptr, QWidget *parent)
      : QWidget(parent),
+       Window_Control_Ptr(Window_Control_ptr),
        Window_Video_Ptr(Window_Video_ptr)
 {
     AudioRecorder = new QAudioRecorder(this);
@@ -55,8 +56,11 @@ void Microphone::createUi() {
 //private slots
 
 void Microphone::startRecord() {
-    AudioRecorder->setOutputLocation(QUrl::fromLocalFile(QDir::currentPath() + "//" + "test" + ".wav"));
+    qDebug() << Window_Video_Ptr->getPlayerPosition();
+    AudioRecorder->setOutputLocation(QUrl::fromLocalFile(QDir::currentPath() + "//" + "record" + QString::number(Window_Control_Ptr->NextRecordId) + ".wav"));
     AudioRecorder->record();
+
+
 
     StartTime = Window_Video_Ptr->getPlayerPosition();
     LabelStartTime->setText(QString("Start time: %1").arg(miliSecToTime(StartTime)));
@@ -69,6 +73,7 @@ void Microphone::startRecord() {
 }
 
 void Microphone::stopRecord() {
+    qDebug() << Window_Video_Ptr->getPlayerPosition();
     AudioRecorder->stop();
     EndTime = Window_Video_Ptr->getPlayerPosition();
     LabelEndTime->setText(QString("End time: %1").arg(miliSecToTime(EndTime)));
@@ -77,7 +82,7 @@ void Microphone::stopRecord() {
     disconnect(ButtonRecord, SIGNAL(clicked()), this, SLOT(stopRecord()));
     connect(ButtonRecord, SIGNAL(clicked()), this, SLOT(startRecord()));
     ButtonRecord->setText("Record");
-    recordingEnd(StartTime, EndTime, "test.wav");
+    recordingEnd(Window_Control_Ptr->NextRecordId, StartTime, EndTime, "record" + QString::number(Window_Control_Ptr->NextRecordId) + ".wav");
 
 }
 

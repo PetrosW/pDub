@@ -16,7 +16,7 @@ class Microphone : public QWidget
     Q_OBJECT
 
     public:
-        Microphone(Window_Video_t *Window_Video_ptr, QWidget *parent = 0);
+        Microphone(Window_Control_t *Window_Control_ptr, Window_Video_t *Window_Video_ptr, QWidget *parent = 0);
         ~Microphone();
 
 
@@ -25,6 +25,7 @@ class Microphone : public QWidget
         void createUi();
 
         Window_Video_t *Window_Video_Ptr;
+        Window_Control_t *Window_Control_Ptr;
         QAudioRecorder *AudioRecorder;
         QTimer *TimerRecord;
 
@@ -45,7 +46,7 @@ class Microphone : public QWidget
         void timerRecordTick();
 
     signals:
-        void recordingEnd(int StartTime, int EndTime, QString Name);
+        void recordingEnd(int RecordId, int StartTime, int EndTime, QString Name);
 };
 
 #endif // MICROPHONE

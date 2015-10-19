@@ -24,7 +24,8 @@ HEADERS = include/common.hpp \
           include/windows/editor_window.hpp \
           include/ffmpeg/error_codes.hpp \
           include/ffmpeg/exception.hpp \
-          include/ffmpeg/ffmpeg.hpp
+          include/ffmpeg/ffmpeg.hpp \
+          include/dialogs/newproject_dialog.hpp
 
 
 
@@ -35,5 +36,7 @@ SOURCES = src/main.cpp \
           src/editor_window.cpp \
           src/microphone.cpp \
           src/record.cpp \
+          src/common.cpp \
           src/ffmpeg/exception.cpp \
-          src/ffmpeg/ffmpeg.cpp
+          src/ffmpeg/ffmpeg.cpp \
+          src/newproject_dialog.cpp
