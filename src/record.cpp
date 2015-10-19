@@ -11,11 +11,11 @@ Record::Record(int id, int startTime, int endTime, QString name, QWidget *parent
     qDebug() << Name;
 
 
-    this->setGeometry(30*Id, 0, 20, 20);
+    this->setGeometry(startTime / 100, 0, (endTime - startTime) / 100, 40);
     this->setToolTip("StartTime: " + QString::number(StartTime));
 
     QPalette Pal(palette());
-    Pal.setColor(QPalette::Background, Qt::black);
+    Pal.setColor(QPalette::Background, Qt::darkGreen);
     this->setAutoFillBackground(true);
     this->setPalette(Pal);
 }

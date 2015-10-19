@@ -14,12 +14,14 @@ class Record : public QWidget
         Record(int id, int startTime, int endTime, QString name, QWidget *parent = 0);
         ~Record();
 
-    private:
-
         int Id;
         int StartTime;
         int EndTime;
         QString Name;
+
+    private:
+
+
 
 };
 

@@ -18,6 +18,8 @@ class Window_Editor_t : public QWidget
         void setWindowVideoPtr(Window_Video_t *Window_Video);
         void setAfterVideoLoad(qint64 duration);
 
+        QMap<int, Record *> MapRecord;
+
     private:
 
         Window_Control_t *Window_Control_Ptr;
@@ -40,8 +42,6 @@ class Window_Editor_t : public QWidget
         QLabel *LabelVideoTime;
         QLabel *LabelRecordStartTime;
         QLabel *LabelRecordEndTime;
-
-        QMap<int, Record *> MapRecord;
 
         void createUi();
 

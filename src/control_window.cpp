@@ -107,7 +107,6 @@ void Window_Control_t::newProject(QString projectName, QString videoFilePath, QS
 
 void Window_Control_t::newProjectDialog() {
     // get a path and a name of file
-
     newProject_dialog *NewProjectDialog = new newProject_dialog(this);
     connect(NewProjectDialog, SIGNAL(accepted(QString, QString, QString)), this, SLOT(newProject(QString, QString, QString)));
     NewProjectDialog->show();
@@ -148,31 +147,32 @@ void Window_Control_t::loadProject() {
     else {*/
         VideoFilePath = xmlReader.readElementText();
     //}
-    /*xmlReader.readNextStartElement();  //první <record>
+    xmlReader.readNextStartElement();  //první <record>
+    int id; int startTime; int endTime; QString name;
     while(!xmlReader.atEnd()) {
         if (xmlReader.isEndElement()) {
             xmlReader.readNext();
             continue;
         }
-        t_recordDab newRecord;
-        newRecord.id = xmlReader.attributes().value("id").toUInt();
+        id = xmlReader.attributes().value("id").toUInt();
         xmlReader.readNextStartElement();
-        newRecord.nameOfRecord = xmlReader.readElementText();
+        name = xmlReader.readElementText();
         xmlReader.readNextStartElement();
-        newRecord.startTime = xmlReader.readElementText().toUInt();
+        startTime = xmlReader.readElementText().toUInt();
         xmlReader.readNextStartElement();
-        newRecord.color = xmlReader.readElementText();
+        /*newRecord.color = xmlReader.readElementText();
         xmlReader.readNextStartElement();
         newRecord.row = xmlReader.readElementText().toInt();
-        xmlReader.readNextStartElement();
-        newRecord.endTime = xmlReader.readElementText().toUInt();
+        xmlReader.readNextStartElement();*/
+        endTime = xmlReader.readElementText().toUInt();
         xmlReader.readNextStartElement();
         xmlReader.readNextStartElement(); //nevím proč ale jinak to nejde
-        if (m_idRecord <= newRecord.id) {
-            m_idRecord = newRecord.id + 1;
+
+        Window_Editor_Ptr->addNewRecordObject(id, startTime, endTime, name);
+        if (NextRecordId <= id) {
+            NextRecordId = id + 1;
         }
-        listOfRecords.insert(newRecord.id, newRecord);
-    }*/
+    }
     QDir().mkdir(RecordPath);
 
     /*listOfRecordsSave.clear();
@@ -209,19 +209,19 @@ void Window_Control_t::saveProject() {
     //}
     xmlWriter.writeEndElement();
 
-    /*
-    foreach (t_recordDab value, listOfRecords) {
+
+    foreach (Record *value, Window_Editor_Ptr->MapRecord) {
         xmlWriter.writeStartElement("record");
-        xmlWriter.writeAttribute("id", QString::number(value.id));
-        xmlWriter.writeTextElement("nameOfRecord", value.nameOfRecord);
-        xmlWriter.writeTextElement("startTime", QString::number(value.startTime));
-        xmlWriter.writeTextElement("color", value.color);
-        xmlWriter.writeTextElement("row", QString::number(value.row));
-        xmlWriter.writeTextElement("endTime", QString::number(value.endTime));
+        xmlWriter.writeAttribute("id", QString::number(value->Id));
+        xmlWriter.writeTextElement("recordName", value->Name);
+        xmlWriter.writeTextElement("startTime", QString::number(value->StartTime));
+        //xmlWriter.writeTextElement("color", value.color);
+        //xmlWriter.writeTextElement("row", QString::number(value.row));
+        xmlWriter.writeTextElement("endTime", QString::number(value->EndTime));
         xmlWriter.writeEndElement();
     }
     xmlWriter.writeEndElement();
-    */
+
     xmlWriter.writeEndDocument();
     /*
     listOfRecordsSave.clear();
