@@ -1,12 +1,13 @@
 #ifndef FFMPEG_HPP
 #define FFMPEG_HPP
 
-#include <cmath>
-#include <cstdint>
+#include <algorithm>
+#include <climits>
 #include <cstdio>
 #include <cstring>
 #include <string>
 #include <utility>
+#include <vector>
 #include "exception.hpp"
 
 extern "C" {
@@ -17,7 +18,7 @@ extern "C" {
 #define PACKET_WAV_SAMPLE_COUNT 1024 // 1024 samples form one packet
 
 namespace FfmpegCleanUpLevelCode {
-    enum Type:std::uint8_t {
+    enum Type:uint8_t {
         // for Ffmpeg_t::cleanUp_SplitTrack()
         LEVEL_AVIO,
         LEVEL_AVFORMAT_CONTEXT,
@@ -31,6 +32,7 @@ class Ffmpeg_t
         Ffmpeg_t();
         void splitTrack(std::string FileName, uint64_t SplitDuration);
         uint64_t getAudioDuration(std::string FileName);
+        std::pair<std::vector<double>, std::vector<double> > getSamplesForWaveformPlotting(std::string FileName);
     
     private:
         //AVCodec *Codec_In;
@@ -50,6 +52,8 @@ class Ffmpeg_t
         void initInputFileAudio(std::string &FileName);
         void writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration);
         void cleanUp_SplitTrack(FfmpegCleanUpLevelCode::Type Level, bool CloseInput = 1);
+        void separateChannelSamples(int16_t *SamplePtr, std::vector<double> &Channel1, std::vector<double> &Channel2, int16_t SampleCountXChannels, bool Restart);
+        void separateChannelSamples2(int16_t *SamplePtr, std::vector<double> &Channel1, std::vector<double> &Channel2, int16_t SampleCountXChannels, bool Restart);
 };
 
 #endif

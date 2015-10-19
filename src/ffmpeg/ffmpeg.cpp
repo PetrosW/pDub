@@ -1,5 +1,4 @@
 #include <ffmpeg/ffmpeg.hpp>
-#include <iostream>
 
 Ffmpeg_t::Ffmpeg_t() : Packet{}, SampleCount(0)
 {
@@ -22,6 +21,166 @@ void Ffmpeg_t::cleanUp_SplitTrack(FfmpegCleanUpLevelCode::Type Level, bool Close
         
         default:
         return;
+    }
+}
+
+std::pair<std::vector<double>, std::vector<double> > Ffmpeg_t::getSamplesForWaveformPlotting(std::string FileName)
+{
+    initInputFileAudio(FileName);
+    
+    std::vector<double> Channel1, Channel2;
+    
+    int32_t ErrCode = 0;
+    while ( !(ErrCode = av_read_frame(Container_In, &Packet) ) )
+    {
+        int16_t *SamplePtr = reinterpret_cast<int16_t *>(Packet.data);
+        separateChannelSamples(SamplePtr, Channel1, Channel2, Packet.duration << 1, false);
+        av_free_packet(&Packet);
+    }
+    
+    avformat_close_input(&Container_In);
+    separateChannelSamples(nullptr, Channel1, Channel2, 0, true);
+    
+    if (ErrCode == AVERROR_EOF) return std::make_pair(Channel1, Channel2);
+    else throw FfmpegException_t(FfmpegErrorCode::CONTAINER_IN_READ_FRAME, ErrCode);
+}
+
+void Ffmpeg_t::separateChannelSamples2(int16_t *SamplePtr, std::vector<double> &Channel1, std::vector<double> &Channel2, int16_t SampleCountXChannels, bool Restart)
+{
+    bool IsFirstChannel = 1;
+    
+    static int16_t MinMax_Channel1[] = {SHRT_MAX, SHRT_MIN}, MinMax_Channel2[] = {SHRT_MAX, SHRT_MIN};
+    static int16_t *Max_Channel1 = MinMax_Channel1 + 1, *Max_Channel2 = MinMax_Channel2 + 1;
+    static int16_t *Min_Channel1 = MinMax_Channel1, *Min_Channel2 = MinMax_Channel2;
+    
+    if (Restart)
+    {
+        SampleCount = 0;
+        // Does it work correctly after multiple runs?
+        *Max_Channel1 = *Max_Channel2 = SHRT_MIN;
+        *Min_Channel1 = *Min_Channel2 = SHRT_MAX;
+        return;
+        
+        // Should I flush MinMax_Channels or discard?
+    }
+    
+    for (int16_t i = 0; i < SampleCountXChannels; i++)
+    {
+        if (IsFirstChannel)
+        {
+            if (SamplePtr[i] > *Max_Channel1)
+            {
+                *Max_Channel1 = SamplePtr[i];
+                
+                if (Max_Channel1 < Min_Channel1)
+                {
+                    std::swap(*Max_Channel1, *Min_Channel1);
+                    std::swap(Max_Channel1, Min_Channel1);
+                }
+            }
+            
+            if (SamplePtr[i] < *Min_Channel1)
+            {
+                *Min_Channel1 = SamplePtr[i];
+                
+                if (Min_Channel1 < Max_Channel1)
+                {
+                    std::swap(*Max_Channel1, *Min_Channel1);
+                    std::swap(Max_Channel1, Min_Channel1);
+                }
+            }
+        }
+        else
+        {
+            if (SamplePtr[i] > *Max_Channel2)
+            {
+                *Max_Channel2 = SamplePtr[i];
+                
+                if (Max_Channel2 < Min_Channel2)
+                {
+                    std::swap(*Max_Channel2, *Min_Channel2);
+                    std::swap(Max_Channel2, Min_Channel2);
+                }
+            }
+            
+            if (SamplePtr[i] < *Min_Channel2)
+            {
+                *Min_Channel2 = SamplePtr[i];
+                
+                if (Min_Channel2 < Max_Channel2)
+                {
+                    std::swap(*Max_Channel2, *Min_Channel2);
+                    std::swap(Max_Channel2, Min_Channel2);
+                }
+            }
+            SampleCount++;
+            
+            if (SampleCount == 44)
+            {
+                Channel1.push_back(MinMax_Channel1[0]);
+                Channel1.push_back(MinMax_Channel1[1]);
+                Channel2.push_back(MinMax_Channel2[0]);
+                Channel2.push_back(MinMax_Channel2[1]);
+                
+                *Min_Channel1 = *Min_Channel2 = SHRT_MAX;
+                *Max_Channel1 = *Max_Channel2 = SHRT_MIN;
+                SampleCount = 0;
+            }
+        }
+        
+        IsFirstChannel = !IsFirstChannel;
+    }
+}
+
+void Ffmpeg_t::separateChannelSamples(int16_t *SamplePtr, std::vector<double> &Channel1, std::vector<double> &Channel2, int16_t SampleCountXChannels, bool Restart)
+{
+    bool IsFirstChannel = 1;
+    static bool IsMaxChecking = 1;
+    
+    static int16_t MinMax_Channel1 = SHRT_MIN, MinMax_Channel2 = SHRT_MIN;
+    static const int16_t& (*MinMax_Function)(const int16_t&, const int16_t&) = std::max<int16_t>;
+    
+    if (Restart)
+    {
+        IsMaxChecking = 1;
+        SampleCount = 0;
+        MinMax_Channel1 = MinMax_Channel2 = SHRT_MIN;
+        MinMax_Function = std::max<int16_t>;
+        return;
+        
+        // Should I flush MinMax_Channels or discard?
+    }
+    
+    for (int16_t i = 0; i < SampleCountXChannels; i++)
+    {
+        if (IsFirstChannel) MinMax_Channel1 = MinMax_Function(MinMax_Channel1, SamplePtr[i]);
+        else
+        {
+            MinMax_Channel2 = MinMax_Function(MinMax_Channel2, SamplePtr[i]);
+            SampleCount++;
+            
+            if (SampleCount == 44)
+            {
+                Channel1.push_back(MinMax_Channel1);
+                Channel2.push_back(MinMax_Channel2);
+                
+                if (IsMaxChecking)
+                {
+                    MinMax_Channel1 = MinMax_Channel2 = SHRT_MAX;
+                    MinMax_Function = std::min<int16_t>;
+                }
+                else
+                {
+                    MinMax_Channel1 = MinMax_Channel2 = SHRT_MIN;
+                    MinMax_Function = std::max<int16_t>;
+                }
+                
+                IsMaxChecking = !IsMaxChecking;
+                SampleCount = 0;
+            }
+        }
+        
+        IsFirstChannel = !IsFirstChannel;
     }
 }
 
