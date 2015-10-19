@@ -1,7 +1,6 @@
 #ifndef EXCEPTION_HPP
 #define EXCEPTION_HPP
 
-#include <cstdint>
 #include <exception>
 #include <string>
 #include "error_codes.hpp"
