@@ -94,7 +94,7 @@ void Window_Editor_t::createUi() {
 //public
 
 void Window_Editor_t::setAfterVideoLoad(qint64 duration) {
-    WorkPlaceWidget->resize(duration / 100, 200);
+    WorkPlaceWidget->setGeometry(0, 0, int(duration / 100) , 500);
 }
 
 //public slots

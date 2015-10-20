@@ -2,6 +2,7 @@
 #define RECORD_HPP
 
 #include <QWidget>
+#include <QMouseEvent>
 
 #include <common.hpp>
 
@@ -21,6 +22,14 @@ class Record : public QWidget
 
     private:
 
+        int dragStartPositionX;
+        int dragMouseOffsetX;
+
+    public slots:
+    private slots:
+        void mouseMoveEvent(QMouseEvent *event);
+        void mousePressEvent(QMouseEvent *event);
+        void mouseReleaseEvent(QMouseEvent *event);
 
 
 };
