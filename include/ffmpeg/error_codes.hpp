@@ -1,8 +1,10 @@
 #ifndef ERROR_CODES_HPP
 #define ERROR_CODES_HPP
 
+#include <cstdint>
+
 namespace FfmpegErrorCode {
-    enum Type:std::uint8_t {
+    enum Type:uint8_t {
         NO_ERROR,
         SPLIT_DURATION_1_EMPTY,
         CONTAINER_IN_ALLOC,

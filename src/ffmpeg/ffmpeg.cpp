@@ -34,12 +34,12 @@ std::pair<std::vector<double>, std::vector<double> > Ffmpeg_t::getSamplesForWave
     while ( !(ErrCode = av_read_frame(Container_In, &Packet) ) )
     {
         int16_t *SamplePtr = reinterpret_cast<int16_t *>(Packet.data);
-        separateChannelSamples(SamplePtr, Channel1, Channel2, Packet.duration << 1, false);
+        separateChannelSamples2(SamplePtr, Channel1, Channel2, Packet.duration << 1, false);
         av_free_packet(&Packet);
     }
     
     avformat_close_input(&Container_In);
-    separateChannelSamples(nullptr, Channel1, Channel2, 0, true);
+    separateChannelSamples2(nullptr, Channel1, Channel2, 0, true);
     
     if (ErrCode == AVERROR_EOF) return std::make_pair(Channel1, Channel2);
     else throw FfmpegException_t(FfmpegErrorCode::CONTAINER_IN_READ_FRAME, ErrCode);
