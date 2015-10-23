@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <functional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -54,7 +55,7 @@ class Ffmpeg_t
         void writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration);
         void cleanUp_SplitTrack(FfmpegCleanUpLevelCode::Type Level, bool CloseInput = 1);
         void separateChannelSamples(int16_t *SamplePtr, std::vector<double> &Channel1, std::vector<double> &Channel2, int16_t SampleCountXChannels, bool Restart);
-        void separateChannelSamples2(int16_t *SamplePtr, std::vector<double> &Channel1, std::vector<double> &Channel2, int16_t SampleCountXChannels, bool Restart);
+        void compareMinMaxAndSwap(std::function<bool(int16_t, int16_t)> SampleComparator, int16_t **MinMaxValue, int16_t Sample, int16_t **SwapMinMaxValueWith);
 };
 
 #endif
