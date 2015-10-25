@@ -1,6 +1,6 @@
 #include <ffmpeg/ffmpeg.hpp>
 
-Ffmpeg_t::Ffmpeg_t() : Packet{}, SampleCount(0)
+Ffmpeg_t::Ffmpeg_t() : Packet{}, StreamIndex(0), SampleCount(0)
 {
     av_register_all();
 }
@@ -141,9 +141,13 @@ void Ffmpeg_t::initInputFileAudio(std::string &FileName)
         throw FfmpegException_t(FfmpegErrorCode::CONTAINER_IN_STREAM_INFO, ErrCode);
     }
     
-    if (Container_In->nb_streams > 1) fprintf(stderr, "Warning: more than 1 stream in input file %s detected. Selecting first stream.", FileName.c_str() );
+    if (Container_In->nb_streams > 1)
+    {
+        fprintf(stderr, "Warning: more than 1 stream in input file %s detected. Selecting first audio stream.", FileName.c_str() );
+        while ( (StreamIndex < Container_In->nb_streams) && (Container_In->streams[StreamIndex]->codec->codec_type != AVMEDIA_TYPE_AUDIO) ) StreamIndex++;
+    }
     
-    if (Container_In->streams[0]->codec->codec_type != AVMEDIA_TYPE_AUDIO)
+    if ( (StreamIndex == Container_In->nb_streams) || (Container_In->streams[StreamIndex]->codec->codec_type != AVMEDIA_TYPE_AUDIO) )
     {
         cleanUp_SplitTrack(FfmpegCleanUpLevelCode::LEVEL_AVFORMAT_INPUT);
         throw FfmpegException_t(FfmpegErrorCode::CONTAINER_IN_STREAM_NOT_AUDIO, 0);

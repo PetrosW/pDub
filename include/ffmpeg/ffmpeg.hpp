@@ -48,6 +48,7 @@ class Ffmpeg_t
         
         AVPacket Packet;
         
+        uint8_t StreamIndex;
         uint8_t SampleBuffer[(PACKET_WAV_SAMPLE_COUNT - 1) * 4];
         uint16_t SampleCount;
         
