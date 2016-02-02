@@ -19,7 +19,14 @@ namespace FfmpegErrorCode {
         CONTAINER_OUT_WRITE_HEADER,
         CONTAINER_OUT_WRITE_FRAME,
         CONTAINER_OUT_WRITE_TRAILER,
-        PACKET_ALLOC
+        PACKET_ALLOC,
+        FRAME_ALLOC,
+        CODEC_IN_NOT_FOUND,
+        CODEC_IN_OPEN,
+        RESAMPLE_ALLOC,
+        RESAMPLE_INIT,
+        RESAMPLE_CONVERT,
+        DECODE
     };
 }
 

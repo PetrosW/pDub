@@ -13,7 +13,7 @@ MOC_DIR = objects
 
 INCLUDEPATH += include
 
-LIBS += -lavcodec -lavformat -lavutil
+LIBS += -lavcodec -lavformat -lavutil -lswresample
 
 HEADERS = include/common.hpp \
           include/pdub.hpp \

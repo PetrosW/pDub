@@ -5,18 +5,52 @@ Ffmpeg_t::Ffmpeg_t() : Packet{}, StreamIndex(0), SampleCount(0)
     av_register_all();
 }
 
-void Ffmpeg_t::cleanUp_SplitTrack(FfmpegCleanUpLevelCode::Type Level, bool CloseInput)
+void Ffmpeg_t::cleanUp_SplitTrack(FfmpegCleanUpLevelCode_SplitTrack::Type Level, bool CloseInput)
 {
     switch (Level)
     {
-        case FfmpegCleanUpLevelCode::LEVEL_AVIO:
+        case FfmpegCleanUpLevelCode_SplitTrack::LEVEL_AVIO:
             avio_closep(&Container_Out->pb);
         
-        case FfmpegCleanUpLevelCode::LEVEL_AVFORMAT_CONTEXT:
+        case FfmpegCleanUpLevelCode_SplitTrack::LEVEL_AVFORMAT_CONTEXT:
             avformat_free_context(Container_Out);
         
-        case FfmpegCleanUpLevelCode::LEVEL_AVFORMAT_INPUT:
+        case FfmpegCleanUpLevelCode_SplitTrack::LEVEL_AVFORMAT_INPUT:
             if (CloseInput) avformat_close_input(&Container_In);
+        break;
+        
+        default:
+        return;
+    }
+}
+
+void Ffmpeg_t::cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::Type Level, AVFrame **Frame, SwrContext **ResampleContext)
+{
+    switch (Level)
+    {
+        case FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_PACKET:
+            av_free_packet(&Packet);
+        
+        case FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_AVIO:
+            avio_closep(&Container_Out->pb);
+        
+        case FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_AVFORMAT_OUTPUT:
+            avformat_free_context(Container_Out);
+        
+        case FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_RESAMPLE_CLOSE:
+            if (*ResampleContext) swr_close(*ResampleContext);
+        
+        case FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_RESAMPLE_FREE:
+            if (*ResampleContext) swr_free(ResampleContext);
+        
+        case FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_FRAME:
+            av_frame_free(Frame);
+        
+        case FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_AVCODEC_CLOSE:
+            avcodec_close(Container_In->streams[StreamIndex]->codec);
+        
+        case FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_AVFORMAT_INPUT:
+            avformat_close_input(&Container_In);
         break;
         
         default:
@@ -79,7 +113,7 @@ void Ffmpeg_t::separateChannelSamples(int16_t *SamplePtr, std::vector<double> &C
             
             SampleCount++;
             
-            if (SampleCount == 44)
+            if (SampleCount == 44) // 44 samples ~ 1 ms
             {
                 Channel1.push_back(MinMax_Channel1[0]);
                 Channel1.push_back(MinMax_Channel1[1]);
@@ -110,6 +144,299 @@ void Ffmpeg_t::compareMinMaxAndSwap(std::function<bool(int16_t, int16_t)> Sample
     }
 }
 
+void Ffmpeg_t::convertInputAudio(std::string FileName, std::string Id)
+{
+    bool DoResample = false;
+    
+    initInputFileAudio(FileName);
+    
+    AVCodecContext *CodecContext_In = Container_In->streams[StreamIndex]->codec;
+    if (!CodecContext_In->channel_layout) CodecContext_In->channel_layout = av_get_default_channel_layout(CodecContext_In->channels);
+    
+    if ( (CodecContext_In->sample_rate != 44100) || ( (CodecContext_In->sample_fmt != AV_SAMPLE_FMT_S16P) && (CodecContext_In->sample_fmt != AV_SAMPLE_FMT_S16) ) 
+       || (CodecContext_In->channel_layout != AV_CH_LAYOUT_STEREO) ) DoResample = true;
+        
+    if ( (!DoResample) && (CodecContext_In->codec_id == AV_CODEC_ID_PCM_S16LE) )
+    {
+        printf("Info: nothing needs to be done, codecs and sample rate/format fit\n");
+        avformat_close_input(&Container_In);
+        return;
+    }
+    
+    AVCodec *Codec_In = avcodec_find_decoder(CodecContext_In->codec_id);
+    if ( (!Codec_In) || (Codec_In->id < AV_CODEC_ID_FIRST_AUDIO) || (Codec_In->id >= AV_CODEC_ID_FIRST_SUBTITLE) )
+    {
+        cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_AVFORMAT_INPUT);
+        throw FfmpegException_t(FfmpegErrorCode::CODEC_IN_NOT_FOUND, 0);
+    }
+    
+    if (avcodec_open2(CodecContext_In, avcodec_find_decoder(CodecContext_In->codec_id), nullptr) )
+    {
+        cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_AVFORMAT_INPUT);
+        throw FfmpegException_t(FfmpegErrorCode::CODEC_IN_OPEN, 0);
+    }
+    
+    int32_t ErrCode = 0;
+    SwrContext *ResampleContext = nullptr;
+    int32_t (Ffmpeg_t::*resampleFunction)(SwrContext *, AVFrame *, std::vector<uint8_t>&) =
+        (DoResample ? &Ffmpeg_t::resample_AndStore : &Ffmpeg_t::resample_JustStore);
+    
+    AVFrame *Frame = av_frame_alloc();
+    if (!Frame)
+    {
+        cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_AVCODEC_CLOSE);
+        throw FfmpegException_t(FfmpegErrorCode::FRAME_ALLOC, 0);
+    }
+    
+    if (DoResample)
+    {
+        ResampleContext = swr_alloc_set_opts(nullptr, AV_CH_LAYOUT_STEREO, AV_SAMPLE_FMT_S16, 44100,
+                                             CodecContext_In->channel_layout, CodecContext_In->sample_fmt, CodecContext_In->sample_rate, 0, nullptr);
+        if (!ResampleContext)
+        {
+            cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_FRAME, &Frame);
+            throw FfmpegException_t(FfmpegErrorCode::RESAMPLE_ALLOC, 0);
+        }
+        
+        ErrCode = swr_init(ResampleContext);
+        if (ErrCode < 0)
+        {
+            cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_RESAMPLE_FREE, &Frame, &ResampleContext);
+            throw FfmpegException_t(FfmpegErrorCode::RESAMPLE_INIT, ErrCode);
+        }
+    }
+    
+    ErrCode = avformat_alloc_output_context2(&Container_Out, nullptr, "wav", nullptr);
+    if (ErrCode < 0)
+    {
+        cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_RESAMPLE_CLOSE, &Frame, &ResampleContext);
+        throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_ALLOC, ErrCode);
+    }
+    
+    AVStream *Stream_Out = avformat_new_stream(Container_Out, avcodec_find_decoder(AV_CODEC_ID_PCM_S16LE) );
+    if (!Stream_Out)
+    {
+        cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_AVFORMAT_OUTPUT, &Frame, &ResampleContext);
+        throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_NEW_STREAM, 0);
+    }
+    
+    Stream_Out->id = 0;
+    Stream_Out->time_base = {1, 44100};
+    Stream_Out->codec->sample_fmt = AV_SAMPLE_FMT_S16;
+    Stream_Out->codec->sample_rate = 44100;
+    Stream_Out->codec->bit_rate = 705600;
+    Stream_Out->codec->channel_layout = AV_CH_LAYOUT_STEREO;
+    Stream_Out->codec->channels = 2;
+    Stream_Out->codec->codec_tag = 0;
+    
+    if (Container_Out->oformat->flags & AVFMT_GLOBALHEADER) Stream_Out->codec->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+    
+    ErrCode = avio_open(&Container_Out->pb, Id.c_str(), AVIO_FLAG_WRITE); // co bude v Id?
+    if (ErrCode < 0)
+    {
+        cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_AVFORMAT_OUTPUT, &Frame, &ResampleContext);
+        throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_OPEN_FILE, ErrCode);
+    }
+    
+    ErrCode = avformat_write_header(Container_Out, nullptr);
+    if (ErrCode < 0)
+    {
+        cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_AVIO, &Frame, &ResampleContext);
+        throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_WRITE_HEADER, ErrCode);
+    }
+    
+    AVPacket Packet_Out = {0};
+    av_init_packet(&Packet_Out);
+    int64_t Duration = 0;
+    int32_t DecodedAmount;
+    int32_t WasFrameDecoded;
+    std::vector<uint8_t> SampleFifo;
+    
+    while (!ErrCode)
+    {
+        ErrCode = av_read_frame(Container_In, &Packet);
+        if (ErrCode < 0)
+        {
+            if (ErrCode == AVERROR_EOF) continue;
+            else
+            {
+                cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_AVIO, &Frame, &ResampleContext);
+                throw FfmpegException_t(FfmpegErrorCode::CONTAINER_IN_READ_FRAME, ErrCode);
+            }
+        }
+        
+        DecodedAmount = 0;
+        
+        do {
+            ErrCode = avcodec_decode_audio4(CodecContext_In, Frame, &WasFrameDecoded, &Packet);
+            if (ErrCode < 0)
+            {
+                cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_PACKET, &Frame, &ResampleContext);
+                throw FfmpegException_t(FfmpegErrorCode::DECODE, ErrCode);
+            }
+            
+            DecodedAmount += ErrCode;
+            if (WasFrameDecoded)
+            {
+                ErrCode = (this->*resampleFunction)(ResampleContext, Frame, SampleFifo);
+                if (ErrCode < 0)
+                {
+                    cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_PACKET, &Frame, &ResampleContext);
+                    throw FfmpegException_t(FfmpegErrorCode::RESAMPLE_CONVERT, 0);
+                }
+            }
+        } while (DecodedAmount < Packet.size);
+        
+        while (SampleFifo.size() >= PACKET_WAV_SAMPLE_COUNT << 2) // 4096
+        {
+            ErrCode = av_new_packet(&Packet_Out, PACKET_WAV_SAMPLE_COUNT << 2);
+            if (ErrCode < 0)
+            {
+                cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_AVIO, &Frame, &ResampleContext);
+                throw FfmpegException_t(FfmpegErrorCode::PACKET_ALLOC, ErrCode);
+            }
+            
+            Packet_Out.duration = 1024;
+            Packet_Out.stream_index = 0;
+            Packet_Out.pts = Duration;
+            Packet_Out.dts = Duration;
+            Packet_Out.pos = -1;
+            
+            Duration += 1024;
+            
+            memcpy(Packet_Out.data, SampleFifo.data(), PACKET_WAV_SAMPLE_COUNT << 2); // 4096
+            SampleFifo.erase(SampleFifo.begin(), SampleFifo.begin() + (PACKET_WAV_SAMPLE_COUNT << 2) ); // 4096
+            
+            ErrCode = av_interleaved_write_frame(Container_Out, &Packet_Out);
+            av_free_packet(&Packet_Out);
+            if (ErrCode < 0)
+            {
+                cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_PACKET, &Frame, &ResampleContext);
+                throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_WRITE_FRAME, ErrCode);
+            }
+        }
+        av_free_packet(&Packet);
+        ErrCode = 0;
+    }
+    
+    // Input file processing done, flushing decoder
+    Packet.data = nullptr;
+    Packet.size = 0;
+    
+    do {
+        avcodec_decode_audio4(CodecContext_In, Frame, &WasFrameDecoded, &Packet);
+        if (WasFrameDecoded)
+        {
+            ErrCode = (this->*resampleFunction)(ResampleContext, Frame, SampleFifo);
+            if (ErrCode < 0)
+            {
+                cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_AVIO, &Frame, &ResampleContext);
+                throw FfmpegException_t(FfmpegErrorCode::RESAMPLE_CONVERT, 0);
+            }
+        }
+    } while (WasFrameDecoded);
+    
+    // Flushing ResampleContext
+    if (DoResample)
+    {
+        uint8_t *ResamplingBuffer[] = {nullptr};
+        ErrCode = av_samples_alloc(ResamplingBuffer, nullptr, 2, 256, AV_SAMPLE_FMT_S16, 0);
+        if (ErrCode < 0)
+        {
+            cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_AVIO, &Frame, &ResampleContext);
+            throw FfmpegException_t(FfmpegErrorCode::RESAMPLE_CONVERT, 0);
+        }
+        
+        do {
+            ErrCode = swr_convert(ResampleContext, ResamplingBuffer, 256, nullptr, 0);
+            if (ErrCode > 0) SampleFifo.insert(SampleFifo.end(), *ResamplingBuffer, *ResamplingBuffer + (ErrCode << 2) );
+            else if (ErrCode < 0)
+            {
+                cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_AVIO, &Frame, &ResampleContext);
+                throw FfmpegException_t(FfmpegErrorCode::RESAMPLE_CONVERT, 0);
+            }
+        } while (ErrCode > 0);
+        av_freep(ResamplingBuffer);
+    }
+    
+    // Flushing SampleFifo
+    while (!SampleFifo.empty() ) // needs refactor as hell
+    {
+        if (SampleFifo.size() >= PACKET_WAV_SAMPLE_COUNT << 2) ErrCode = av_new_packet(&Packet_Out, PACKET_WAV_SAMPLE_COUNT << 2);
+        else ErrCode = av_new_packet(&Packet_Out, SampleFifo.size() );
+        
+        if (ErrCode < 0)
+        {
+            cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_AVIO, &Frame, &ResampleContext);
+            throw FfmpegException_t(FfmpegErrorCode::PACKET_ALLOC, ErrCode);
+        }
+        
+        Packet_Out.duration = Packet_Out.size >> 2;
+        Packet_Out.stream_index = 0;
+        Packet_Out.pts = Duration;
+        Packet_Out.dts = Duration;
+        Packet_Out.pos = -1;
+        
+        Duration += Packet_Out.duration;
+        
+        memcpy(Packet_Out.data, SampleFifo.data(), Packet_Out.size);
+        SampleFifo.erase(SampleFifo.begin(), SampleFifo.begin() + Packet_Out.size);
+        
+        ErrCode = av_interleaved_write_frame(Container_Out, &Packet_Out);
+        av_free_packet(&Packet_Out);
+        if (ErrCode < 0)
+        {
+            cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_AVIO, &Frame, &ResampleContext);
+            throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_WRITE_FRAME, ErrCode);
+        }
+    }
+    
+    ErrCode = av_write_trailer(Container_Out);
+    if (ErrCode)
+    {
+        cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_AVIO, &Frame, &ResampleContext);
+        throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_WRITE_TRAILER, ErrCode);
+    }
+    
+    cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_AVIO, &Frame, &ResampleContext);
+}
+
+int32_t Ffmpeg_t::resample_AndStore(SwrContext *ResampleContext, AVFrame *Frame, std::vector<uint8_t> &SampleFifo)
+{
+    int32_t GeneratedSamplesCount = av_rescale_rnd(Frame->nb_samples, 44100, Container_In->streams[StreamIndex]->codec->sample_rate, AV_ROUND_UP);
+    uint8_t *ResamplingBuffer[] = {nullptr};
+    
+    int32_t ErrCode = av_samples_alloc(ResamplingBuffer, nullptr, 2, GeneratedSamplesCount, AV_SAMPLE_FMT_S16, 0);
+    if (ErrCode >= 0)
+    {
+        ErrCode = swr_convert(ResampleContext, ResamplingBuffer, GeneratedSamplesCount, const_cast<const uint8_t**>(Frame->data), Frame->nb_samples);
+        if (ErrCode > 0) SampleFifo.insert(SampleFifo.end(), *ResamplingBuffer, *ResamplingBuffer + (ErrCode << 2) );
+        
+        av_freep(ResamplingBuffer);
+    }
+    
+    return ErrCode;
+}
+
+int32_t Ffmpeg_t::resample_JustStore(SwrContext *ResampleContext, AVFrame *Frame, std::vector<uint8_t> &SampleFifo)
+{
+    if (Container_In->streams[StreamIndex]->codec->sample_fmt == AV_SAMPLE_FMT_S16)
+        SampleFifo.insert(SampleFifo.end(), Frame->data[0], Frame->data[0] + (Frame->nb_samples << 2) );
+    else
+    {
+        uint16_t BytesPerChannel = Frame->nb_samples;
+        for (uint16_t i = 0; i < BytesPerChannel; i++)
+        {
+            SampleFifo.push_back(Frame->data[0][(i << 1)]);
+            SampleFifo.push_back(Frame->data[0][(i << 1) + 1]);
+            SampleFifo.push_back(Frame->data[1][(i << 1)]);
+            SampleFifo.push_back(Frame->data[1][(i << 1) + 1]);
+        }
+    }
+    
+    return 0;
+}
+
 uint64_t Ffmpeg_t::getAudioDuration(std::string FileName)
 {
     initInputFileAudio(FileName);
@@ -137,10 +464,11 @@ void Ffmpeg_t::initInputFileAudio(std::string &FileName)
     ErrCode = avformat_find_stream_info(Container_In, nullptr);
     if (ErrCode < 0)
     {
-        cleanUp_SplitTrack(FfmpegCleanUpLevelCode::LEVEL_AVFORMAT_INPUT);
+        cleanUp_SplitTrack(FfmpegCleanUpLevelCode_SplitTrack::LEVEL_AVFORMAT_INPUT);
         throw FfmpegException_t(FfmpegErrorCode::CONTAINER_IN_STREAM_INFO, ErrCode);
     }
     
+    StreamIndex = 0;
     if (Container_In->nb_streams > 1)
     {
         fprintf(stderr, "Warning: more than 1 stream in input file %s detected. Selecting first audio stream.", FileName.c_str() );
@@ -149,7 +477,7 @@ void Ffmpeg_t::initInputFileAudio(std::string &FileName)
     
     if ( (StreamIndex == Container_In->nb_streams) || (Container_In->streams[StreamIndex]->codec->codec_type != AVMEDIA_TYPE_AUDIO) )
     {
-        cleanUp_SplitTrack(FfmpegCleanUpLevelCode::LEVEL_AVFORMAT_INPUT);
+        cleanUp_SplitTrack(FfmpegCleanUpLevelCode_SplitTrack::LEVEL_AVFORMAT_INPUT);
         throw FfmpegException_t(FfmpegErrorCode::CONTAINER_IN_STREAM_NOT_AUDIO, 0);
     }
     
@@ -185,21 +513,21 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration
     int32_t ErrCode = avformat_alloc_output_context2(&Container_Out, nullptr, nullptr, SplitFile.c_str() );
     if (ErrCode < 0)
     {
-        cleanUp_SplitTrack(FfmpegCleanUpLevelCode::LEVEL_AVFORMAT_INPUT);
+        cleanUp_SplitTrack(FfmpegCleanUpLevelCode_SplitTrack::LEVEL_AVFORMAT_INPUT);
         throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_ALLOC, ErrCode);
     }
     
-    AVStream *Stream_Out = avformat_new_stream(Container_Out, Container_In->streams[0]->codec->codec);
+    AVStream *Stream_Out = avformat_new_stream(Container_Out, avcodec_find_decoder(Container_In->streams[0]->codec->codec_id) );
     if (!Stream_Out)
     {
-        cleanUp_SplitTrack(FfmpegCleanUpLevelCode::LEVEL_AVFORMAT_CONTEXT);
+        cleanUp_SplitTrack(FfmpegCleanUpLevelCode_SplitTrack::LEVEL_AVFORMAT_CONTEXT);
         throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_NEW_STREAM, 0);
     }
     
     ErrCode = avcodec_copy_context(Stream_Out->codec, Container_In->streams[0]->codec);
     if (ErrCode < 0)
     {
-        cleanUp_SplitTrack(FfmpegCleanUpLevelCode::LEVEL_AVFORMAT_CONTEXT);
+        cleanUp_SplitTrack(FfmpegCleanUpLevelCode_SplitTrack::LEVEL_AVFORMAT_CONTEXT);
         throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_COPY_CODEC_CONTEXT, ErrCode);
     }
     
@@ -214,7 +542,7 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration
         ErrCode = avio_open(&Container_Out->pb, SplitFile.c_str(), AVIO_FLAG_WRITE);
         if (ErrCode < 0)
         {
-            cleanUp_SplitTrack(FfmpegCleanUpLevelCode::LEVEL_AVFORMAT_CONTEXT);
+            cleanUp_SplitTrack(FfmpegCleanUpLevelCode_SplitTrack::LEVEL_AVFORMAT_CONTEXT);
             throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_OPEN_FILE, ErrCode);
         }
     }
@@ -223,7 +551,7 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration
     ErrCode = avformat_write_header(Container_Out, nullptr);
     if (ErrCode < 0)
     {
-        cleanUp_SplitTrack(FfmpegCleanUpLevelCode::LEVEL_AVIO);
+        cleanUp_SplitTrack(FfmpegCleanUpLevelCode_SplitTrack::LEVEL_AVIO);
         throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_WRITE_HEADER, ErrCode);
     }
     
@@ -248,7 +576,7 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration
             if (ErrCode == AVERROR_EOF) continue;
             else
             {
-                cleanUp_SplitTrack(FfmpegCleanUpLevelCode::LEVEL_AVIO);
+                cleanUp_SplitTrack(FfmpegCleanUpLevelCode_SplitTrack::LEVEL_AVIO);
                 throw FfmpegException_t(FfmpegErrorCode::CONTAINER_IN_READ_FRAME, ErrCode);
             }
         }
@@ -287,7 +615,7 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration
                 ErrCode = av_new_packet(&Packet, (Condition ? 4096 : (PacketDuration + SampleCount) << 2) );
                 if (ErrCode)
                 {
-                    cleanUp_SplitTrack(FfmpegCleanUpLevelCode::LEVEL_AVIO);
+                    cleanUp_SplitTrack(FfmpegCleanUpLevelCode_SplitTrack::LEVEL_AVIO);
                     throw FfmpegException_t(FfmpegErrorCode::PACKET_ALLOC, ErrCode);
                 }
                 
@@ -345,7 +673,7 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration
         ErrCode = av_interleaved_write_frame(Container_Out, &Packet);
         if (ErrCode < 0)
         {
-            cleanUp_SplitTrack(FfmpegCleanUpLevelCode::LEVEL_AVIO);
+            cleanUp_SplitTrack(FfmpegCleanUpLevelCode_SplitTrack::LEVEL_AVIO);
             throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_WRITE_FRAME, ErrCode);
         }
         
@@ -361,7 +689,7 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration
         ErrCode = av_new_packet(&Packet, SampleCount << 2);
         if (ErrCode < 0)
         {
-            cleanUp_SplitTrack(FfmpegCleanUpLevelCode::LEVEL_AVIO);
+            cleanUp_SplitTrack(FfmpegCleanUpLevelCode_SplitTrack::LEVEL_AVIO);
             throw FfmpegException_t(FfmpegErrorCode::PACKET_ALLOC, ErrCode);
         }
         
@@ -376,7 +704,7 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration
         ErrCode = av_interleaved_write_frame(Container_Out, &Packet);
         if (ErrCode < 0)
         {
-            cleanUp_SplitTrack(FfmpegCleanUpLevelCode::LEVEL_AVIO);
+            cleanUp_SplitTrack(FfmpegCleanUpLevelCode_SplitTrack::LEVEL_AVIO);
             throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_WRITE_FRAME, ErrCode);
         }
         
@@ -386,11 +714,11 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration
     
     // Finish the stream data input
     ErrCode = av_write_trailer(Container_Out);
-    if (ErrCode != 0)
+    if (ErrCode)
     {
-        cleanUp_SplitTrack(FfmpegCleanUpLevelCode::LEVEL_AVIO);
+        cleanUp_SplitTrack(FfmpegCleanUpLevelCode_SplitTrack::LEVEL_AVIO);
         throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_WRITE_TRAILER, ErrCode);
     }
     
-    cleanUp_SplitTrack(FfmpegCleanUpLevelCode::LEVEL_AVIO, false);
+    cleanUp_SplitTrack(FfmpegCleanUpLevelCode_SplitTrack::LEVEL_AVIO, false);
 }
