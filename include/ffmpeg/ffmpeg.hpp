@@ -53,12 +53,6 @@ class Ffmpeg_t
         void convertInputAudio(std::string FileName, std::string Id);
     
     private:
-        //AVCodec *Codec_In;
-        //AVCodec *Codec_Out;
-        
-        //AVCodecContext *CodecContext_In;
-        //AVCodecContext *CodecContext_Out;
-        
         AVFormatContext *Container_In;
         AVFormatContext *Container_Out;
         
@@ -67,6 +61,9 @@ class Ffmpeg_t
         uint8_t StreamIndex;
         uint8_t SampleBuffer[(PACKET_WAV_SAMPLE_COUNT - 1) * 4];
         uint16_t SampleCount;
+        uint64_t Duration;
+        uint8_t *ResamplingBuffer[1];
+        int32_t ResamplingBufferSize;
         
         void initInputFileAudio(std::string &FileName);
         void writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration);
@@ -74,6 +71,7 @@ class Ffmpeg_t
         void cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::Type Level, AVFrame **Frame = nullptr, SwrContext **ResampleContext = nullptr);
         void separateChannelSamples(int16_t *SamplePtr, std::vector<double> &Channel1, std::vector<double> &Channel2, int16_t SampleCountXChannels, bool Restart);
         void compareMinMaxAndSwap(std::function<bool(int16_t, int16_t)> SampleComparator, int16_t **MinMaxValue, int16_t Sample, int16_t **SwapMinMaxValueWith);
+        void prepareOutputPacketAndWriteIt(AVPacket &Packet_Out, std::vector<uint8_t> &SampleFifo, AVFrame *Frame, SwrContext *ResampleContext, bool FreePacket);
         int32_t resample_AndStore(SwrContext *ResampleContext, AVFrame *Frame, std::vector<uint8_t> &SampleFifo);
         int32_t resample_JustStore(SwrContext *ResampleContext, AVFrame *Frame, std::vector<uint8_t> &SampleFifo);
 };

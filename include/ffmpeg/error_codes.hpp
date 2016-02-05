@@ -26,6 +26,7 @@ namespace FfmpegErrorCode {
         RESAMPLE_ALLOC,
         RESAMPLE_INIT,
         RESAMPLE_CONVERT,
+        RESAMPLE_BUFFER_ALLOC,
         DECODE
     };
 }

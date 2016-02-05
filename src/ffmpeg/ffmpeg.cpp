@@ -1,6 +1,6 @@
 #include <ffmpeg/ffmpeg.hpp>
 
-Ffmpeg_t::Ffmpeg_t() : Packet{}, StreamIndex(0), SampleCount(0)
+Ffmpeg_t::Ffmpeg_t() : Packet{}, StreamIndex(0), SampleCount(0), ResamplingBuffer{nullptr}, ResamplingBufferSize(0)
 {
     av_register_all();
 }
@@ -29,7 +29,7 @@ void Ffmpeg_t::cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::Type Le
     switch (Level)
     {
         case FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_PACKET:
-            av_free_packet(&Packet);
+            av_packet_unref(&Packet);
         
         case FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_AVIO:
             avio_closep(&Container_Out->pb);
@@ -69,7 +69,7 @@ std::pair<std::vector<double>, std::vector<double> > Ffmpeg_t::getSamplesForWave
     {
         int16_t *SamplePtr = reinterpret_cast<int16_t *>(Packet.data);
         separateChannelSamples(SamplePtr, Channel1, Channel2, Packet.duration << 1, false);
-        av_free_packet(&Packet);
+        av_packet_unref(&Packet);
     }
     
     avformat_close_input(&Container_In);
@@ -247,22 +247,30 @@ void Ffmpeg_t::convertInputAudio(std::string FileName, std::string Id)
     
     AVPacket Packet_Out = {0};
     av_init_packet(&Packet_Out);
-    int64_t Duration = 0;
+    Duration = 0;
     int32_t DecodedAmount;
     int32_t WasFrameDecoded;
     std::vector<uint8_t> SampleFifo;
+    
+    /* ##### INIT DONE, BOTH CONTAINERS OPEN & READY ##### */
     
     while (!ErrCode)
     {
         ErrCode = av_read_frame(Container_In, &Packet);
         if (ErrCode < 0)
         {
-            if (ErrCode == AVERROR_EOF) continue;
+            if (ErrCode == AVERROR_EOF) break;
             else
             {
                 cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_AVIO, &Frame, &ResampleContext);
                 throw FfmpegException_t(FfmpegErrorCode::CONTAINER_IN_READ_FRAME, ErrCode);
             }
+        }
+        
+        if (Packet.stream_index != StreamIndex)
+        {
+            av_packet_unref(&Packet);
+            continue;
         }
         
         DecodedAmount = 0;
@@ -296,26 +304,10 @@ void Ffmpeg_t::convertInputAudio(std::string FileName, std::string Id)
                 throw FfmpegException_t(FfmpegErrorCode::PACKET_ALLOC, ErrCode);
             }
             
-            Packet_Out.duration = 1024;
-            Packet_Out.stream_index = 0;
-            Packet_Out.pts = Duration;
-            Packet_Out.dts = Duration;
-            Packet_Out.pos = -1;
-            
-            Duration += 1024;
-            
-            memcpy(Packet_Out.data, SampleFifo.data(), PACKET_WAV_SAMPLE_COUNT << 2); // 4096
-            SampleFifo.erase(SampleFifo.begin(), SampleFifo.begin() + (PACKET_WAV_SAMPLE_COUNT << 2) ); // 4096
-            
-            ErrCode = av_interleaved_write_frame(Container_Out, &Packet_Out);
-            av_free_packet(&Packet_Out);
-            if (ErrCode < 0)
-            {
-                cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_PACKET, &Frame, &ResampleContext);
-                throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_WRITE_FRAME, ErrCode);
-            }
+            prepareOutputPacketAndWriteIt(Packet_Out, SampleFifo, Frame, ResampleContext, true);
         }
-        av_free_packet(&Packet);
+        
+        av_packet_unref(&Packet);
         ErrCode = 0;
     }
     
@@ -339,16 +331,8 @@ void Ffmpeg_t::convertInputAudio(std::string FileName, std::string Id)
     // Flushing ResampleContext
     if (DoResample)
     {
-        uint8_t *ResamplingBuffer[] = {nullptr};
-        ErrCode = av_samples_alloc(ResamplingBuffer, nullptr, 2, 256, AV_SAMPLE_FMT_S16, 0);
-        if (ErrCode < 0)
-        {
-            cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_AVIO, &Frame, &ResampleContext);
-            throw FfmpegException_t(FfmpegErrorCode::RESAMPLE_CONVERT, 0);
-        }
-        
         do {
-            ErrCode = swr_convert(ResampleContext, ResamplingBuffer, 256, nullptr, 0);
+            ErrCode = swr_convert(ResampleContext, ResamplingBuffer, ResamplingBufferSize, nullptr, 0);
             if (ErrCode > 0) SampleFifo.insert(SampleFifo.end(), *ResamplingBuffer, *ResamplingBuffer + (ErrCode << 2) );
             else if (ErrCode < 0)
             {
@@ -356,11 +340,13 @@ void Ffmpeg_t::convertInputAudio(std::string FileName, std::string Id)
                 throw FfmpegException_t(FfmpegErrorCode::RESAMPLE_CONVERT, 0);
             }
         } while (ErrCode > 0);
+        
         av_freep(ResamplingBuffer);
+        ResamplingBufferSize = 0;
     }
     
     // Flushing SampleFifo
-    while (!SampleFifo.empty() ) // needs refactor as hell
+    while (!SampleFifo.empty() )
     {
         if (SampleFifo.size() >= PACKET_WAV_SAMPLE_COUNT << 2) ErrCode = av_new_packet(&Packet_Out, PACKET_WAV_SAMPLE_COUNT << 2);
         else ErrCode = av_new_packet(&Packet_Out, SampleFifo.size() );
@@ -371,24 +357,7 @@ void Ffmpeg_t::convertInputAudio(std::string FileName, std::string Id)
             throw FfmpegException_t(FfmpegErrorCode::PACKET_ALLOC, ErrCode);
         }
         
-        Packet_Out.duration = Packet_Out.size >> 2;
-        Packet_Out.stream_index = 0;
-        Packet_Out.pts = Duration;
-        Packet_Out.dts = Duration;
-        Packet_Out.pos = -1;
-        
-        Duration += Packet_Out.duration;
-        
-        memcpy(Packet_Out.data, SampleFifo.data(), Packet_Out.size);
-        SampleFifo.erase(SampleFifo.begin(), SampleFifo.begin() + Packet_Out.size);
-        
-        ErrCode = av_interleaved_write_frame(Container_Out, &Packet_Out);
-        av_free_packet(&Packet_Out);
-        if (ErrCode < 0)
-        {
-            cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_AVIO, &Frame, &ResampleContext);
-            throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_WRITE_FRAME, ErrCode);
-        }
+        prepareOutputPacketAndWriteIt(Packet_Out, SampleFifo, Frame, ResampleContext, false);
     }
     
     ErrCode = av_write_trailer(Container_Out);
@@ -401,18 +370,56 @@ void Ffmpeg_t::convertInputAudio(std::string FileName, std::string Id)
     cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_AVIO, &Frame, &ResampleContext);
 }
 
+void Ffmpeg_t::prepareOutputPacketAndWriteIt(AVPacket &Packet_Out, std::vector<uint8_t> &SampleFifo, AVFrame *Frame, SwrContext *ResampleContext, bool FreePacket)
+{
+    Packet_Out.duration = Packet_Out.size >> 2;
+    Packet_Out.stream_index = 0;
+    Packet_Out.pts = Duration;
+    Packet_Out.dts = Duration;
+    Packet_Out.pos = -1;
+    
+    Duration += Packet_Out.duration;
+    
+    memcpy(Packet_Out.data, SampleFifo.data(), Packet_Out.size);
+    SampleFifo.erase(SampleFifo.begin(), SampleFifo.begin() + Packet_Out.size);
+    
+    int32_t ErrCode = av_interleaved_write_frame(Container_Out, &Packet_Out);
+    av_packet_unref(&Packet_Out);
+    if (ErrCode < 0)
+    {
+        if (FreePacket) cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_PACKET, &Frame, &ResampleContext);
+        else cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_AVIO, &Frame, &ResampleContext);
+        throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_WRITE_FRAME, ErrCode);
+    }
+}
+
 int32_t Ffmpeg_t::resample_AndStore(SwrContext *ResampleContext, AVFrame *Frame, std::vector<uint8_t> &SampleFifo)
 {
+    int32_t ErrCode = 0;
     int32_t GeneratedSamplesCount = av_rescale_rnd(Frame->nb_samples, 44100, Container_In->streams[StreamIndex]->codec->sample_rate, AV_ROUND_UP);
-    uint8_t *ResamplingBuffer[] = {nullptr};
     
-    int32_t ErrCode = av_samples_alloc(ResamplingBuffer, nullptr, 2, GeneratedSamplesCount, AV_SAMPLE_FMT_S16, 0);
+    if (ResamplingBufferSize < GeneratedSamplesCount)
+    {
+        av_freep(ResamplingBuffer);
+        ErrCode = av_samples_alloc(ResamplingBuffer, nullptr, 2, GeneratedSamplesCount, AV_SAMPLE_FMT_S16, 0);
+        ResamplingBufferSize = GeneratedSamplesCount;
+    }
+    
     if (ErrCode >= 0)
     {
-        ErrCode = swr_convert(ResampleContext, ResamplingBuffer, GeneratedSamplesCount, const_cast<const uint8_t**>(Frame->data), Frame->nb_samples);
+        ErrCode = swr_convert(ResampleContext, ResamplingBuffer, ResamplingBufferSize, const_cast<const uint8_t**>(Frame->data), Frame->nb_samples);
         if (ErrCode > 0) SampleFifo.insert(SampleFifo.end(), *ResamplingBuffer, *ResamplingBuffer + (ErrCode << 2) );
-        
-        av_freep(ResamplingBuffer);
+        else
+        {
+            av_freep(ResamplingBuffer);
+            ResamplingBufferSize = 0;
+        }
+    }
+    else
+    {
+        ResamplingBufferSize = 0;
+        cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_PACKET, &Frame, &ResampleContext);
+        throw FfmpegException_t(FfmpegErrorCode::RESAMPLE_BUFFER_ALLOC, 0);
     }
     
     return ErrCode;
@@ -471,7 +478,7 @@ void Ffmpeg_t::initInputFileAudio(std::string &FileName)
     StreamIndex = 0;
     if (Container_In->nb_streams > 1)
     {
-        fprintf(stderr, "Warning: more than 1 stream in input file %s detected. Selecting first audio stream.", FileName.c_str() );
+        fprintf(stderr, "Warning: more than 1 stream in input file %s detected. Selecting first audio stream.\n", FileName.c_str() );
         while ( (StreamIndex < Container_In->nb_streams) && (Container_In->streams[StreamIndex]->codec->codec_type != AVMEDIA_TYPE_AUDIO) ) StreamIndex++;
     }
     
@@ -557,7 +564,7 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration
     
     /* ##### CONTAINER READY ##### */
     
-    uint64_t Duration = 0;
+    Duration = 0;
     
     /* End it when:
      * 1) one of the functions fails
@@ -604,7 +611,7 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration
             {
                 int64_t PacketDuration = Packet.duration;
                 memcpy(TmpBuffer, Packet.data, PacketDuration << 2); // == PacketDuration * 4
-                av_free_packet(&Packet);
+                av_packet_unref(&Packet);
                 
                 /* Are samples from the obtained packet and SampleBuffer together larger than a packet?
                  * Saving some time since it repeats
@@ -677,7 +684,7 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration
             throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_WRITE_FRAME, ErrCode);
         }
         
-        av_free_packet(&Packet);
+        av_packet_unref(&Packet);
     }
     
     /* When SplitDuration == 0 (flushing rest of the audio) and SampleBuffer holds samples,
@@ -708,7 +715,7 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration
             throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_WRITE_FRAME, ErrCode);
         }
         
-        av_free_packet(&Packet);
+        av_packet_unref(&Packet);
         SampleCount = 0;
     }
     
