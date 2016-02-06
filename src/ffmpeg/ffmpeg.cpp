@@ -248,6 +248,7 @@ void Ffmpeg_t::convertInputAudio(std::string FileName, std::string Id)
     AVPacket Packet_Out = {0};
     av_init_packet(&Packet_Out);
     Duration = 0;
+    ResamplingBufferSize = 0;
     int32_t DecodedAmount;
     int32_t WasFrameDecoded;
     std::vector<uint8_t> SampleFifo;
@@ -342,7 +343,6 @@ void Ffmpeg_t::convertInputAudio(std::string FileName, std::string Id)
         } while (ErrCode > 0);
         
         av_freep(ResamplingBuffer);
-        ResamplingBufferSize = 0;
     }
     
     // Flushing SampleFifo
@@ -409,15 +409,10 @@ int32_t Ffmpeg_t::resample_AndStore(SwrContext *ResampleContext, AVFrame *Frame,
     {
         ErrCode = swr_convert(ResampleContext, ResamplingBuffer, ResamplingBufferSize, const_cast<const uint8_t**>(Frame->data), Frame->nb_samples);
         if (ErrCode > 0) SampleFifo.insert(SampleFifo.end(), *ResamplingBuffer, *ResamplingBuffer + (ErrCode << 2) );
-        else
-        {
-            av_freep(ResamplingBuffer);
-            ResamplingBufferSize = 0;
-        }
+        else av_freep(ResamplingBuffer);
     }
     else
     {
-        ResamplingBufferSize = 0;
         cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_PACKET, &Frame, &ResampleContext);
         throw FfmpegException_t(FfmpegErrorCode::RESAMPLE_BUFFER_ALLOC, 0);
     }
