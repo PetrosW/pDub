@@ -47,7 +47,7 @@ class Ffmpeg_t
 {
     public:
         Ffmpeg_t();
-        void splitTrack(std::string FileName, uint64_t SplitDuration);
+        void splitTrack(std::string FileName, uint32_t SplitDuration);
         uint64_t getAudioDuration(std::string FileName);
         std::pair<std::vector<double>, std::vector<double> > getSamplesForWaveformPlotting(std::string FileName);
         void convertInputAudio(std::string FileName, std::string Id);
@@ -61,19 +61,19 @@ class Ffmpeg_t
         uint8_t StreamIndex;
         uint8_t SampleBuffer[(PACKET_WAV_SAMPLE_COUNT - 1) * 4];
         uint16_t SampleCount;
-        uint64_t Duration;
+        uint32_t Duration;
         uint8_t *ResamplingBuffer[1];
         int32_t ResamplingBufferSize;
         
         void initInputFileAudio(std::string &FileName);
-        void writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration);
+        void writePacketsToFile(std::string &SplitFile, uint32_t SplitDuration);
         void cleanUp_SplitTrack(FfmpegCleanUpLevelCode_SplitTrack::Type Level, bool CloseInput = 1);
         void cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::Type Level, AVFrame **Frame = nullptr, SwrContext **ResampleContext = nullptr);
         void separateChannelSamples(int16_t *SamplePtr, std::vector<double> &Channel1, std::vector<double> &Channel2, int16_t SampleCountXChannels, bool Restart);
         void compareMinMaxAndSwap(std::function<bool(int16_t, int16_t)> SampleComparator, int16_t **MinMaxValue, int16_t Sample, int16_t **SwapMinMaxValueWith);
         void prepareOutputPacketAndWriteIt(AVPacket &Packet_Out, std::vector<uint8_t> &SampleFifo, AVFrame *Frame, SwrContext *ResampleContext, bool FreePacket);
         int32_t resample_AndStore(SwrContext *ResampleContext, AVFrame *Frame, std::vector<uint8_t> &SampleFifo);
-        int32_t resample_JustStore(SwrContext *ResampleContext, AVFrame *Frame, std::vector<uint8_t> &SampleFifo);
+        int32_t resample_JustStore(SwrContext *, AVFrame *Frame, std::vector<uint8_t> &SampleFifo);
 };
 
 #endif

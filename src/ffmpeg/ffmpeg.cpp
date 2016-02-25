@@ -420,7 +420,7 @@ int32_t Ffmpeg_t::resample_AndStore(SwrContext *ResampleContext, AVFrame *Frame,
     return ErrCode;
 }
 
-int32_t Ffmpeg_t::resample_JustStore(SwrContext *ResampleContext, AVFrame *Frame, std::vector<uint8_t> &SampleFifo)
+int32_t Ffmpeg_t::resample_JustStore(SwrContext *, AVFrame *Frame, std::vector<uint8_t> &SampleFifo)
 {
     if (Container_In->streams[StreamIndex]->codec->sample_fmt == AV_SAMPLE_FMT_S16)
         SampleFifo.insert(SampleFifo.end(), Frame->data[0], Frame->data[0] + (Frame->nb_samples << 2) );
@@ -486,7 +486,7 @@ void Ffmpeg_t::initInputFileAudio(std::string &FileName)
     av_init_packet(&Packet);
 }
 
-void Ffmpeg_t::splitTrack(std::string FileName, uint64_t SplitDuration)
+void Ffmpeg_t::splitTrack(std::string FileName, uint32_t SplitDuration)
 {
     if (!SplitDuration) throw FfmpegException_t(FfmpegErrorCode::SPLIT_DURATION_1_EMPTY, 0);
     
@@ -498,7 +498,7 @@ void Ffmpeg_t::splitTrack(std::string FileName, uint64_t SplitDuration)
     SplitFile_2.replace(SplitFile_2.find_last_of("."), 1, "_2.");
     
     // Transforming miliseconds to sample count (44.1 samples = 1 ms when 44100 KHz sampling freq)
-    SplitDuration = std::llround(SplitDuration * 44.1);
+    SplitDuration = std::lround(SplitDuration * 44.1);
     
     initInputFileAudio(FileName);
     
@@ -510,7 +510,7 @@ void Ffmpeg_t::splitTrack(std::string FileName, uint64_t SplitDuration)
     avformat_close_input(&Container_In);
 }
 
-void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration)
+void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint32_t SplitDuration)
 {
     int32_t ErrCode = avformat_alloc_output_context2(&Container_Out, nullptr, nullptr, SplitFile.c_str() );
     if (ErrCode < 0)
@@ -604,7 +604,7 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint64_t SplitDuration
              */
             if (Packet.duration < PACKET_WAV_SAMPLE_COUNT)
             {
-                int64_t PacketDuration = Packet.duration;
+                int32_t PacketDuration = Packet.duration;
                 memcpy(TmpBuffer, Packet.data, PacketDuration << 2); // == PacketDuration * 4
                 av_packet_unref(&Packet);
                 
