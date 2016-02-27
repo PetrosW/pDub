@@ -7,10 +7,22 @@
 #include <cstdio>
 #include <cstring>
 #include <functional>
+#include <list>
+#include <map>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
 #include "exception.hpp"
+
+class Record_1
+{
+    public:
+        uint32_t Id;
+        uint32_t StartTime;
+        uint32_t EndTime;
+        std::string Name;
+};
 
 extern "C" {
     #include <libavcodec/avcodec.h>
@@ -43,6 +55,35 @@ namespace FfmpegCleanUpLevelCode_ConvertAudio {
     };
 }
 
+namespace FfmpegExportComponents {
+    enum :uint8_t {
+        // for Ffmpeg::exportProject()
+        AUDIO_ONLY = 0x01,
+        VIDEO_ONLY = 0x02,
+        AUDIO_VIDEO = AUDIO_ONLY | VIDEO_ONLY
+    };
+}
+
+class Interval_t
+{
+    public:
+        Interval_t(uint32_t S, uint32_t E) : StartTime(S), EndTime(E) {};
+        uint32_t StartTime;
+        uint32_t EndTime;
+};
+
+struct Comparator_Interval_t {
+    bool operator()(const Interval_t &lhs, const Interval_t &rhs)
+    {
+        return (lhs.StartTime < rhs.StartTime);
+    }
+};
+
+typedef struct {
+    uint64_t SampleCount;
+    std::list<uint32_t> Recordings;
+} AudioTask_t;
+
 class Ffmpeg_t
 {
     public:
@@ -51,6 +92,7 @@ class Ffmpeg_t
         uint64_t getAudioDuration(std::string FileName);
         std::pair<std::vector<double>, std::vector<double> > getSamplesForWaveformPlotting(std::string FileName);
         void convertInputAudio(std::string FileName, std::string Id);
+        void exportProject(std::map<uint16_t, Record_1 *> &Recordings, std::string OutputFile, uint32_t Start, uint32_t End, uint8_t ExportComponents);
     
     private:
         AVFormatContext *Container_In;
@@ -65,7 +107,7 @@ class Ffmpeg_t
         uint8_t *ResamplingBuffer[1];
         int32_t ResamplingBufferSize;
         
-        void initInputFileAudio(std::string &FileName);
+        void initInputFileAudio(std::string &FileName, AVFormatContext **Container = nullptr);
         void writePacketsToFile(std::string &SplitFile, uint32_t SplitDuration);
         void cleanUp_SplitTrack(FfmpegCleanUpLevelCode_SplitTrack::Type Level, bool CloseInput = 1);
         void cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::Type Level, AVFrame **Frame = nullptr, SwrContext **ResampleContext = nullptr);

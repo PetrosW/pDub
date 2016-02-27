@@ -452,19 +452,21 @@ uint64_t Ffmpeg_t::getAudioDuration(std::string FileName)
     return Duration_miliseconds;
 }
 
-void Ffmpeg_t::initInputFileAudio(std::string &FileName)
+void Ffmpeg_t::initInputFileAudio(std::string &FileName, AVFormatContext **Container)
 {
-    Container_In = avformat_alloc_context();
-    if (!Container_In) throw FfmpegException_t(FfmpegErrorCode::CONTAINER_IN_ALLOC, 0);
+    AVFormatContext *&Container_Now = (Container ? *Container : Container_In);
     
-    int32_t ErrCode = avformat_open_input(&Container_In, FileName.c_str(), nullptr, nullptr);
+    Container_Now = avformat_alloc_context();
+    if (!Container_Now) throw FfmpegException_t(FfmpegErrorCode::CONTAINER_IN_ALLOC, 0);
+    
+    int32_t ErrCode = avformat_open_input(&Container_Now, FileName.c_str(), nullptr, nullptr);
     if (ErrCode < 0)
     {
-        avformat_free_context(Container_In);
+        avformat_free_context(Container_Now);
         throw FfmpegException_t(FfmpegErrorCode::CONTAINER_IN_OPEN, ErrCode);
     }
     
-    ErrCode = avformat_find_stream_info(Container_In, nullptr);
+    ErrCode = avformat_find_stream_info(Container_Now, nullptr);
     if (ErrCode < 0)
     {
         cleanUp_SplitTrack(FfmpegCleanUpLevelCode_SplitTrack::LEVEL_AVFORMAT_INPUT);
@@ -472,19 +474,19 @@ void Ffmpeg_t::initInputFileAudio(std::string &FileName)
     }
     
     StreamIndex = 0;
-    if (Container_In->nb_streams > 1)
+    if (Container_Now->nb_streams > 1)
     {
         fprintf(stderr, "Warning: more than 1 stream in input file %s detected. Selecting first audio stream.\n", FileName.c_str() );
-        while ( (StreamIndex < Container_In->nb_streams) && (Container_In->streams[StreamIndex]->codec->codec_type != AVMEDIA_TYPE_AUDIO) ) StreamIndex++;
+        while ( (StreamIndex < Container_Now->nb_streams) && (Container_Now->streams[StreamIndex]->codec->codec_type != AVMEDIA_TYPE_AUDIO) ) StreamIndex++;
     }
     
-    if ( (StreamIndex == Container_In->nb_streams) || (Container_In->streams[StreamIndex]->codec->codec_type != AVMEDIA_TYPE_AUDIO) )
+    if ( (StreamIndex == Container_Now->nb_streams) || (Container_Now->streams[StreamIndex]->codec->codec_type != AVMEDIA_TYPE_AUDIO) )
     {
         cleanUp_SplitTrack(FfmpegCleanUpLevelCode_SplitTrack::LEVEL_AVFORMAT_INPUT);
         throw FfmpegException_t(FfmpegErrorCode::CONTAINER_IN_STREAM_NOT_AUDIO, 0);
     }
     
-    av_init_packet(&Packet);
+    if (!Container) av_init_packet(&Packet);
 }
 
 void Ffmpeg_t::splitTrack(std::string FileName, uint32_t SplitDuration)
@@ -724,4 +726,70 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint32_t SplitDuration
     }
     
     cleanUp_SplitTrack(FfmpegCleanUpLevelCode_SplitTrack::LEVEL_AVIO, false);
+}
+
+void Ffmpeg_t::exportProject(std::map<uint16_t, Record_1 *> &Recordings, std::string OutputFile, uint32_t Start, uint32_t End, uint8_t ExportComponents)
+{
+    std::vector<AVFormatContext *> InputTracks;
+    std::set<Interval_t, Comparator_Interval_t> IntervalSet_Current, IntervalSet_Previous;
+    
+    IntervalSet_Previous.emplace(Start, End);
+    
+    for (auto Recording: Recordings)
+    {
+        for (auto Interval: IntervalSet_Previous)
+        {
+            // Co se stane, pokud nahravka bude zacatkem vevnitr ale koncem mimo
+            if ( (Recording.second->StartTime >= Start) && (Recording.second->EndTime <= End) )
+            {
+                // Overlapping at the start
+                if ( (Interval.StartTime < Recording.second->StartTime) && (Interval.EndTime > Recording.second->StartTime) )
+                {
+                    IntervalSet_Current.emplace(Interval.StartTime, Recording.second->StartTime);
+                    Interval.StartTime = Recording.second->StartTime;
+                }
+                
+                // Overlapping at the end
+                if ( (Interval.EndTime > Recording.second->EndTime) && (Interval.StartTime < Recording.second->EndTime) )
+                {
+                    IntervalSet_Current.emplace(Interval.StartTime, Recording.second->EndTime);
+                    IntervalSet_Current.emplace(Recording.second->EndTime, Interval.EndTime);
+                }
+                else IntervalSet_Current.emplace(Interval.StartTime, Interval.EndTime);
+            }
+        }
+        
+        IntervalSet_Previous.clear();
+        std::swap(IntervalSet_Previous, IntervalSet_Current);
+    }
+    
+    std::list<AudioTask_t> TaskList;
+    
+    for (auto Interval: IntervalSet_Previous)
+    {
+        AudioTask_t Task = {Interval.EndTime - Interval.StartTime};
+        
+        for (auto Recording: Recordings)
+        {
+            if ( (Recording.second->StartTime >= Start) && (Recording.second->EndTime <= End) )
+            {
+                if ( (Interval.StartTime >= Recording.second->StartTime) && (Interval.EndTime <= Recording.second->EndTime) )
+                {
+                    Task.Recordings.push_back(Recording.second->Id);
+                }
+            }
+        }
+        
+        TaskList.push_back(std::move(Task) );
+    }
+    
+    /*for (auto Task: TaskList)
+    {
+        printf("Interval: %ld", Task.SampleCount);
+        for (auto Recording: Task.Recordings)
+        {
+            printf(" %d", Recording);
+        }
+        printf("\n");
+    }*/
 }
