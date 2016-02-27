@@ -1,7 +1,8 @@
 #include <ffmpeg/ffmpeg.hpp>
 
-Ffmpeg_t::Ffmpeg_t() : Packet{}, StreamIndex(0), SampleCount(0), ResamplingBuffer{nullptr}, ResamplingBufferSize(0)
+Ffmpeg_t::Ffmpeg_t() : Packet{}, StreamIndex(0), SampleCount(0), ResamplingBufferSize(0)
 {
+    ResamplingBuffer[0] = nullptr;
     av_register_all();
 }
 
