@@ -18,7 +18,7 @@ Window_Editor_t::Window_Editor_t(Window_Control_t *Window_Control, QWidget *Wind
 
 
     QPalette Pal(palette());
-    Pal.setColor(QPalette::Background, Qt::red);
+    Pal.setColor(QPalette::Background, QColor(80,100,120));
 
 //    Layout->addWidget(WorkPlaceWidget, 0, 1);
 //    Layout->setColumnMinimumWidth(0, 200);
@@ -33,13 +33,6 @@ Window_Editor_t::Window_Editor_t(Window_Control_t *Window_Control, QWidget *Wind
     WorkPlaceWidget->setAutoFillBackground(true);
     WorkPlaceWidget->setPalette(Pal);
 
-//    QVBoxLayout* mainLayout = new QVBoxLayout(WorkPlaceWidget);
-
-//    QPushButton *ButtonSplit1 = new QPushButton("Split", this);
-//    QPushButton *ButtonSplit2 = new QPushButton("Split", this);
-//    mainLayout->addWidget(ButtonSplit1);
-//    mainLayout->addWidget(ButtonSplit2);
-    WorkPlaceWidget->show();
 
     WorkPlaceScrollArea->setWidget(WorkPlaceWidget);
     //WorkPlaceScrollArea->setWidgetResizable(true);
@@ -54,7 +47,13 @@ Window_Editor_t::Window_Editor_t(Window_Control_t *Window_Control, QWidget *Wind
 //    Layout->setColumnStretch(1, 9);
 //    SliderWidget->setAutoFillBackground(true);
 //    SliderWidget->setPalette(Pal);
+    WorkPlaceWidget->show();
 
+    ButtonAddRow = new QPushButton("+", WorkPlaceWidget);
+    ButtonAddRow->resize(40,40);
+    ButtonAddRow->move(20,160);
+    connect(ButtonAddRow, SIGNAL(pressed()), this, SLOT(addRow()));
+    //lol->show();
 
     createUi();
 
@@ -78,7 +77,6 @@ void Window_Editor_t::createUi() {
 
     ButtonBackward = new QPushButton("<<", this);
     ControlLayout->addWidget(ButtonBackward, 1, 0, 2, 1);
-
     ButtonForward = new QPushButton(">>", this);
     ControlLayout->addWidget(ButtonForward, 1, 2, 2 ,1);
 
@@ -91,10 +89,18 @@ void Window_Editor_t::createUi() {
 
 }
 
+//private slots
+
+void Window_Editor_t::addRow() {
+    WorkPlaceWidget->resize(WorkPlaceWidget->width(), WorkPlaceWidget->height()+50);
+    ButtonAddRow->move(20,ButtonAddRow->y()+50);
+}
+
 //public
 
 void Window_Editor_t::setAfterVideoLoad(qint64 duration) {
-    WorkPlaceWidget->setGeometry(0, 0, int(duration / 100) , 500);
+    // 200 velikost 200/50 počet řádků potom načíst z uložení
+    WorkPlaceWidget->setGeometry(0, 0, int(duration / 100) , 200);
 }
 
 //public slots
