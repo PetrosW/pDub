@@ -21,8 +21,9 @@ Window_Video_t::Window_Video_t(Window_Control_t *Window_Control, QWidget *Window
     Player = new QtAV::AVPlayer(this);
     Player->setRenderer(VideoOutput);
     Player->audio()->setVolume(0.8);
-    Player->setSeekType(QtAV::AccurateSeek);
+
     connect(Player, &QtAV::AVPlayer::started, this, &Window_Video_t::playInit);
+    connect(Player, SIGNAL(seekFinished(qint64)), this, SLOT(onSeekFinished(qint64)));
     Layout->addWidget(VideoOutput->widget(), 0, 0);
 
     createUi();
@@ -90,18 +91,11 @@ int Window_Video_t::getPlayerPosition() {
     return int(Player->position());
 }
 
-// private slots
-void Window_Video_t::playInit() {
-    SliderVideoTime->setMaximum(Player->duration());
-    Window_Editor_Ptr->setAfterVideoLoad(Player->duration());
-    while (!Player->isPlaying() || !Player->isPaused()) {
-        if (Player->isPlaying()) {
-            Player->setPosition(qint64(0));
-            Player->pause(true);
-        }
-    }
+bool Window_Video_t::isPaused() {
+    return Player->isPaused();
 }
 
+// public slots
 void Window_Video_t::play() {
     ButtonPlay->setText("Pause");
     disconnect(ButtonPlay, SIGNAL(clicked()), this, SLOT(play()));
@@ -114,6 +108,23 @@ void Window_Video_t::pause() {
     disconnect(ButtonPlay, SIGNAL(clicked()), this, SLOT(pause()));
     connect(ButtonPlay, SIGNAL(clicked()), this, SLOT(play()));
     Player->pause(true);
+}
+
+// private slots
+void Window_Video_t::playInit() {
+    SliderVideoTime->setMaximum(Player->duration());
+    Window_Editor_Ptr->setAfterVideoLoad(Player->duration());
+    //Player->setBufferMode(QtAV::BufferTime);
+    //120000000 = 120 MB
+    //Player->setBufferValue(60000);
+    Player->setSeekType(QtAV::AccurateSeek);
+    while (!Player->isPlaying() || !Player->isPaused()) {
+        if (Player->isPlaying()) {
+            Player->setPosition(qint64(0));
+            Player->pause(true);
+            Player->setSeekType(QtAV::AccurateSeek);
+        }
+    }
 }
 
 void Window_Video_t::setVolume(int newVolume) {
@@ -134,9 +145,11 @@ void Window_Video_t::updateSilderTimeValue(qint64 newSliderPosition) {
 }
 
 void Window_Video_t::seekBackward() {
-    Player->seek(Player->position() - 1000);
+    Player->seek(Player->position() - 5000);
 }
 
 void Window_Video_t::seekForward() {
-    Player->seek(Player->position() + 1000);
+
+    Player->seek(Player->position() + 5000);
+
 }

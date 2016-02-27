@@ -11,7 +11,7 @@ Record::Record(int id, int startTime, int endTime, QString name, QWidget *parent
     qDebug() << Name;
 
 
-    this->setGeometry(startTime / 100, 0, (endTime - startTime) / 100, 40);
+    this->setGeometry(startTime / 100, 0, (endTime - startTime) / 100, 50);
     this->setToolTip("StartTime: " + QString::number(StartTime));
     this->setToolTipDuration(0);
 
@@ -34,14 +34,14 @@ void Record::mousePressEvent(QMouseEvent *event) {
 
 void Record::mouseMoveEvent(QMouseEvent *event) {
     if(event->buttons() & Qt::LeftButton) {
-        if (event->pos().y() > 40){
-            QPoint movePoint(this->x(), this->y() + 40);
+        if (event->pos().y() > 50){
+            QPoint movePoint(this->x(), this->y() + 50);
             if (movePoint.y() < 0 || (movePoint.y() + this->height()) > parentWidget()->height())
                 return;
             this->move(movePoint);
         }
         else if (event->pos().y() < 0) {
-            QPoint movePoint(this->x(), this->y() - 40);
+            QPoint movePoint(this->x(), this->y() - 50);
             if (movePoint.y() < 0 || (movePoint.y() + this->height()) > parentWidget()->height())
                 return;
             this->move(movePoint);

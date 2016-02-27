@@ -20,6 +20,7 @@ class Window_Video_t : public QWidget
 
         void firstPlay(QString FileName);
         int getPlayerPosition();
+        bool isPaused();
 
     private:
         Window_Control_t *Window_Control_Ptr;
@@ -39,10 +40,12 @@ class Window_Video_t : public QWidget
 
         void createUi();
 
-    private slots:
-        void playInit();
+    public slots:
         void play();
         void pause();
+
+    private slots:
+        void playInit();
         void seekForward();
         void seekBackward();
         void setVolume(int newVolume);

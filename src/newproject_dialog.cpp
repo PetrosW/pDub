@@ -2,6 +2,7 @@
 
 newProject_dialog::newProject_dialog(QWidget *parent) : QDialog(parent)
 {
+    this->resize(400,200);
     ButtonSelectVideo = new QPushButton("Select", this);
     ButtonSelectProjectFolder = new QPushButton("Select", this);
     LabelProjectName = new QLabel("Project name:", this);

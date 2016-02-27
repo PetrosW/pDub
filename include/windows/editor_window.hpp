@@ -39,11 +39,16 @@ class Window_Editor_t : public QWidget
         QPushButton *ButtonForward;
         QPushButton *ButtonBackward;
 
+        QPushButton *ButtonAddRow;
+
         QLabel *LabelVideoTime;
         QLabel *LabelRecordStartTime;
         QLabel *LabelRecordEndTime;
 
         void createUi();
+
+    private slots:
+        void addRow();
 
     public slots:
 
