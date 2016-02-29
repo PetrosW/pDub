@@ -154,6 +154,7 @@ void Ffmpeg_t::convertInputAudio(std::string FileName, std::string Id)
     AVCodecContext *CodecContext_In = Container_In->streams[StreamIndex]->codec;
     if (!CodecContext_In->channel_layout) CodecContext_In->channel_layout = av_get_default_channel_layout(CodecContext_In->channels);
     
+    // Checking whether resampling is needed
     if ( (CodecContext_In->sample_rate != 44100) || ( (CodecContext_In->sample_fmt != AV_SAMPLE_FMT_S16P) && (CodecContext_In->sample_fmt != AV_SAMPLE_FMT_S16) ) 
        || (CodecContext_In->channel_layout != AV_CH_LAYOUT_STEREO) ) DoResample = true;
         
@@ -277,6 +278,7 @@ void Ffmpeg_t::convertInputAudio(std::string FileName, std::string Id)
         
         DecodedAmount = 0;
         
+        // Decoding a packet until it's wholly consumed
         do {
             ErrCode = avcodec_decode_audio4(CodecContext_In, Frame, &WasFrameDecoded, &Packet);
             if (ErrCode < 0)
@@ -286,7 +288,7 @@ void Ffmpeg_t::convertInputAudio(std::string FileName, std::string Id)
             }
             
             DecodedAmount += ErrCode;
-            if (WasFrameDecoded)
+            if (WasFrameDecoded) // The decoded amount can be less than one frame, need to check
             {
                 ErrCode = (this->*resampleFunction)(ResampleContext, Frame, SampleFifo);
                 if (ErrCode < 0)
@@ -330,7 +332,7 @@ void Ffmpeg_t::convertInputAudio(std::string FileName, std::string Id)
         }
     } while (WasFrameDecoded);
     
-    // Flushing ResampleContext
+    // Flushing ResampleContext, only if resampling took place
     if (DoResample)
     {
         do {
@@ -358,6 +360,7 @@ void Ffmpeg_t::convertInputAudio(std::string FileName, std::string Id)
             throw FfmpegException_t(FfmpegErrorCode::PACKET_ALLOC, ErrCode);
         }
         
+        // Get samples from SampleFifo (packet-full or the remainder) and write them
         prepareOutputPacketAndWriteIt(Packet_Out, SampleFifo, Frame, ResampleContext, false);
     }
     
@@ -399,12 +402,15 @@ int32_t Ffmpeg_t::resample_AndStore(SwrContext *ResampleContext, AVFrame *Frame,
     int32_t ErrCode = 0;
     int32_t GeneratedSamplesCount = av_rescale_rnd(Frame->nb_samples, 44100, Container_In->streams[StreamIndex]->codec->sample_rate, AV_ROUND_UP);
     
+    // Adaptively resizing buffer for resampled samples (getting bigger only)
     if (ResamplingBufferSize < GeneratedSamplesCount)
     {
         av_freep(ResamplingBuffer);
         ErrCode = av_samples_alloc(ResamplingBuffer, nullptr, 2, GeneratedSamplesCount, AV_SAMPLE_FMT_S16, 0);
         ResamplingBufferSize = GeneratedSamplesCount;
     }
+    
+    // Audio after resampling is set to be interleaved
     
     if (ErrCode >= 0)
     {
@@ -423,9 +429,10 @@ int32_t Ffmpeg_t::resample_AndStore(SwrContext *ResampleContext, AVFrame *Frame,
 
 int32_t Ffmpeg_t::resample_JustStore(SwrContext *, AVFrame *Frame, std::vector<uint8_t> &SampleFifo)
 {
-    if (Container_In->streams[StreamIndex]->codec->sample_fmt == AV_SAMPLE_FMT_S16)
+    // TODO: change from std::vector to char[]
+    if (Container_In->streams[StreamIndex]->codec->sample_fmt == AV_SAMPLE_FMT_S16) // Interleaved
         SampleFifo.insert(SampleFifo.end(), Frame->data[0], Frame->data[0] + (Frame->nb_samples << 2) );
-    else
+    else // Non-interleaved, planar
     {
         uint16_t BytesPerChannel = Frame->nb_samples;
         for (uint16_t i = 0; i < BytesPerChannel; i++)
