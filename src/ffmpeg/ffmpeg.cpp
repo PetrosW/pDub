@@ -59,6 +59,31 @@ void Ffmpeg_t::cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::Type Le
     }
 }
 
+void Ffmpeg_t::cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::Type Level, std::map<uint32_t, AVFormatContext *> &InputTracks, AVFrame **Frame)
+{
+    switch (Level)
+    {
+        case FfmpegCleanUpLevelCode_ExportProject::LEVEL_FRAME:
+            av_frame_free(Frame);
+        
+        case FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVCODEC_CLOSE:
+            avcodec_close(Container_Out->streams[0]->codec);
+        
+        case FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVIO:
+            avio_closep(&Container_Out->pb);
+        
+        case FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVFORMAT_OUTPUT:
+            avformat_free_context(Container_Out);
+        
+        case FfmpegCleanUpLevelCode_ExportProject::LEVEL_INPUT_TRACKS:
+            for (auto Recording: InputTracks) avformat_close_input(&Recording.second);
+        break;
+        
+        default:
+        return;
+    }
+}
+
 std::pair<std::vector<double>, std::vector<double> > Ffmpeg_t::getSamplesForWaveformPlotting(std::string FileName)
 {
     initInputFileAudio(FileName);
@@ -145,6 +170,7 @@ void Ffmpeg_t::compareMinMaxAndSwap(std::function<bool(int16_t, int16_t)> Sample
     }
 }
 
+// TODO: SampleFifo to uint16_t, everywhere?
 void Ffmpeg_t::convertInputAudio(std::string FileName, std::string Id)
 {
     bool DoResample = false;
@@ -247,7 +273,7 @@ void Ffmpeg_t::convertInputAudio(std::string FileName, std::string Id)
         throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_WRITE_HEADER, ErrCode);
     }
     
-    AVPacket Packet_Out = {0};
+    AVPacket Packet_Out = {};
     av_init_packet(&Packet_Out);
     Duration = 0;
     ResamplingBufferSize = 0;
@@ -452,7 +478,7 @@ uint64_t Ffmpeg_t::getAudioDuration(std::string FileName)
     initInputFileAudio(FileName);
     
     double SampleRate = Container_In->streams[0]->codec->sample_rate;
-    uint64_t Duration_miliseconds = std::llround( (Container_In->streams[0]->duration / SampleRate) * 1000);
+    uint64_t Duration_miliseconds = static_cast<uint64_t>( (Container_In->streams[0]->duration / SampleRate) * 1000);
     
     avformat_close_input(&Container_In);
     
@@ -508,7 +534,7 @@ void Ffmpeg_t::splitTrack(std::string FileName, uint32_t SplitDuration)
     SplitFile_2.replace(SplitFile_2.find_last_of("."), 1, "_2.");
     
     // Transforming miliseconds to sample count (44.1 samples = 1 ms when 44100 KHz sampling freq)
-    SplitDuration = std::lround(SplitDuration * 44.1);
+    SplitDuration = static_cast<uint64_t>(SplitDuration * 44.1);
     
     initInputFileAudio(FileName);
     
@@ -735,68 +761,324 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint32_t SplitDuration
     cleanUp_SplitTrack(FfmpegCleanUpLevelCode_SplitTrack::LEVEL_AVIO, false);
 }
 
-void Ffmpeg_t::exportProject(std::map<uint16_t, Record_1 *> &Recordings, std::string OutputFile, uint32_t Start, uint32_t End, uint8_t ExportComponents)
+void Ffmpeg_t::exportProject(std::map<uint32_t, Record_1 *> &Recordings, std::string OutputFile, uint32_t Start, uint32_t End, uint8_t ExportComponents)
 {
-    std::vector<AVFormatContext *> InputTracks;
+    std::map<uint32_t, AVFormatContext *> InputTracks;
     std::set<Interval_t, Comparator_Interval_t> IntervalSet_Current, IntervalSet_Previous;
     
+    // ##### CREATING EXPORT TIME PLAN #####
+    
+    // Creating intervals
     IntervalSet_Previous.emplace(Start, End);
     
     for (auto Recording: Recordings)
     {
         for (auto Interval: IntervalSet_Previous)
         {
-            // Co se stane, pokud nahravka bude zacatkem vevnitr ale koncem mimo
-            if ( (Recording.second->StartTime >= Start) && (Recording.second->EndTime <= End) )
+            if ( (Recording.second->StartTime == Interval.StartTime) && (Recording.second->EndTime == Interval.EndTime) ) continue;
+            
+            if ( (Recording.second->StartTime <= Interval.StartTime) && (Recording.second->EndTime < Interval.EndTime)
+            && (Recording.second->EndTime > Interval.StartTime) )
             {
-                // Overlapping at the start
-                if ( (Interval.StartTime < Recording.second->StartTime) && (Interval.EndTime > Recording.second->StartTime) )
-                {
-                    IntervalSet_Current.emplace(Interval.StartTime, Recording.second->StartTime);
-                    Interval.StartTime = Recording.second->StartTime;
-                }
-                
-                // Overlapping at the end
-                if ( (Interval.EndTime > Recording.second->EndTime) && (Interval.StartTime < Recording.second->EndTime) )
-                {
-                    IntervalSet_Current.emplace(Interval.StartTime, Recording.second->EndTime);
-                    IntervalSet_Current.emplace(Recording.second->EndTime, Interval.EndTime);
-                }
-                else IntervalSet_Current.emplace(Interval.StartTime, Interval.EndTime);
+                IntervalSet_Current.emplace(Interval.StartTime, Recording.second->EndTime);
+                IntervalSet_Current.emplace(Recording.second->EndTime, Interval.EndTime);
             }
+            else if ( (Recording.second->StartTime > Interval.StartTime) && (Recording.second->EndTime >= Interval.EndTime)
+            && (Recording.second->StartTime < Interval.EndTime) )
+            {
+                IntervalSet_Current.emplace(Interval.StartTime, Recording.second->StartTime);
+                IntervalSet_Current.emplace(Recording.second->StartTime, Interval.EndTime);
+            }
+            else if ( (Recording.second->StartTime > Interval.StartTime) && (Recording.second->EndTime < Interval.EndTime) )
+            {
+                IntervalSet_Current.emplace(Interval.StartTime, Recording.second->StartTime);
+                IntervalSet_Current.emplace(Recording.second->StartTime, Recording.second->EndTime);
+                IntervalSet_Current.emplace(Recording.second->EndTime, Interval.EndTime);
+            }
+            else IntervalSet_Current.emplace(Interval.StartTime, Interval.EndTime);
         }
-        
+        /*for (auto x: IntervalSet_Current) printf("%d %d\n", x.StartTime, x.EndTime);
+        printf("\n");*/
         IntervalSet_Previous.clear();
         std::swap(IntervalSet_Previous, IntervalSet_Current);
     }
     
+    // Assigning recordings (or silence) to each interval
     std::list<AudioTask_t> TaskList;
     
     for (auto Interval: IntervalSet_Previous)
     {
-        AudioTask_t Task = {Interval.EndTime - Interval.StartTime};
+        AudioTask_t Task;
+        Task.SampleCount = static_cast<uint64_t>( (Interval.EndTime - Interval.StartTime) * 44.1);
         
         for (auto Recording: Recordings)
         {
-            if ( (Recording.second->StartTime >= Start) && (Recording.second->EndTime <= End) )
+            if ( (Recording.second->StartTime <= Interval.StartTime) && (Recording.second->EndTime >= Interval.EndTime) )
             {
-                if ( (Interval.StartTime >= Recording.second->StartTime) && (Interval.EndTime <= Recording.second->EndTime) )
+                try
                 {
-                    Task.Recordings.push_back(Recording.second->Id);
+                    if (!InputTracks.count(Recording.first) ) initInputFileAudio(Recording.second->Name, &InputTracks[Recording.first]);
                 }
+                catch (FfmpegException_t &Err)
+                {
+                    // Need to close remaining open tracks
+                    for (auto OpenRecording: InputTracks)
+                    {
+                        if (OpenRecording.first != Recording.first) avformat_close_input(&OpenRecording.second);
+                    }
+                    throw Err;
+                }
+                Task.Recordings[Recording.first] = InputTracks[Recording.first];
             }
         }
         
         TaskList.push_back(std::move(Task) );
     }
     
-    /*for (auto Task: TaskList)
+    // Prepare buffers for both channels per track
+    std::map<uint32_t, SampleBuffer_t> SampleBuffer_Input;
+    for (auto Track: InputTracks) SampleBuffer_Input[Track.first] = {{0}, {0}, 0};
+    
+    for (auto Recording: TaskList.front().Recordings)
     {
-        printf("Interval: %ld", Task.SampleCount);
-        for (auto Recording: Task.Recordings)
+        if (Recordings[Recording.first]->StartTime < Start)
         {
-            printf(" %d", Recording);
+            int32_t ErrCode = trackStartCorrection(InputTracks[Recording.first],
+                static_cast<uint64_t>( (Start - Recordings[Recording.first]->StartTime) * 44.1), SampleBuffer_Input[Recording.first]);
+            
+            if (ErrCode)
+            {
+                cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVFORMAT_OUTPUT, InputTracks);
+                throw FfmpegException_t(FfmpegErrorCode::CONTAINER_IN_READ_FRAME, ErrCode);
+            }
         }
-        printf("\n");
-    }*/
+    }
+    
+    initOutputFile(OutputFile, ExportComponents, InputTracks);
+    
+    AVCodecContext *CodecContext_Out = Container_Out->streams[0]->codec;
+    if (avcodec_open2(CodecContext_Out, CodecContext_Out->codec, nullptr) )
+    {
+        cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVFORMAT_OUTPUT, InputTracks);
+        throw FfmpegException_t(FfmpegErrorCode::CODEC_IN_OPEN, 0);
+    }
+    
+    // ##### EXPORT PLAN, INPUT TRACKS & OUTPUT CONTAINER READY #####
+    
+    av_init_packet(&Packet);
+    
+    AVFrame *Frame = av_frame_alloc();
+    if (!Frame)
+    {
+        cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVCODEC_CLOSE, InputTracks);
+        throw FfmpegException_t(FfmpegErrorCode::FRAME_ALLOC, 0);
+    }
+    
+    //Frame->nb_samples = PACKET_MP3_SAMPLE_COUNT;
+    Frame->format = AV_SAMPLE_FMT_S16P;
+    Frame->channel_layout = AV_CH_LAYOUT_STEREO;
+    
+    OutputBuffer_t SampleBuffer_Output = {{0.0}, {0.0}, 0};
+    
+    for (auto Task: TaskList)
+    {
+        OutputBuffer_t SampleBuffer_Working = {{0.0}, {0.0}, 0};
+        SampleBuffer_t SampleBuffer_Reordering = {{0}, {0}, 0};
+        
+        if (Task.Recordings.size() > 1) // Mixing is needed
+        {
+            
+        }
+        else if (Task.Recordings.size() ) // Single recording, no mixing
+        {
+            for (auto Recording: Task.Recordings)
+            {
+                if ( (SampleBuffer_Output.SampleCount + Task.SampleCount) >= PACKET_MP3_SAMPLE_COUNT)
+                {
+                    // Osetreni i kdyz bude Task.SampleCount > PACKET_MP3_SAMPLE_COUNT hodnekrat
+                }
+                else // Store in SampleBuffer_Output
+                {
+                    if (SampleBuffer_Input[Recording.first].SampleCount >= Task.SampleCount)
+                        storeSamplesIntoOutputBuffer_variant(SampleBuffer_Input[Recording.first], SampleBuffer_Output, Task.SampleCount);
+                    else // Need to get another packet with more samples
+                    {
+                        do
+                        {
+                            int32_t ErrCode = getInputAudioSamples(Recording.second, SampleBuffer_Reordering);
+                            if (ErrCode)
+                            {
+                                cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_FRAME, InputTracks, &Frame);
+                                throw FfmpegException_t(FfmpegErrorCode::CONTAINER_IN_READ_FRAME, ErrCode);
+                            }
+                        
+                            if ( (SampleBuffer_Input[Recording.first].SampleCount + SampleBuffer_Reordering.SampleCount) <= Task.SampleCount)
+                            {
+                                memcpy(SampleBuffer_Input[Recording.first].ChannelLeft + SampleBuffer_Input[Recording.first].SampleCount,
+                                    SampleBuffer_Reordering.ChannelLeft, SampleBuffer_Reordering.SampleCount);
+                                    
+                                memcpy(SampleBuffer_Input[Recording.first].ChannelRight + SampleBuffer_Input[Recording.first].SampleCount,
+                                    SampleBuffer_Reordering.ChannelRight, SampleBuffer_Reordering.SampleCount);
+                                
+                                SampleBuffer_Input[Recording.first].SampleCount += SampleBuffer_Reordering.SampleCount;
+                                SampleBuffer_Reordering.SampleCount = 0;
+                            }
+                        } while (SampleBuffer_Input[Recording.first].SampleCount + SampleBuffer_Reordering.SampleCount < Task.SampleCount);
+                        
+                        memcpy(SampleBuffer_Input[Recording.first].ChannelLeft + SampleBuffer_Input[Recording.first].SampleCount,
+                            SampleBuffer_Reordering.ChannelLeft, Task.SampleCount - SampleBuffer_Input[Recording.first].SampleCount);
+                            
+                        memcpy(SampleBuffer_Input[Recording.first].ChannelRight + SampleBuffer_Input[Recording.first].SampleCount,
+                            SampleBuffer_Reordering.ChannelRight, Task.SampleCount - SampleBuffer_Input[Recording.first].SampleCount);
+                        
+                        uint16_t TmpSampleCount = Task.SampleCount - SampleBuffer_Input[Recording.first].SampleCount;
+                        SampleBuffer_Input[Recording.first].SampleCount = Task.SampleCount;
+                        
+                        // Zavolat funkci >= Task.SampleCount
+                        storeSamplesIntoOutputBuffer_variant(SampleBuffer_Input[Recording.first], SampleBuffer_Output, Task.SampleCount);
+                        
+                        assert( (SampleBuffer_Reordering.SampleCount - TmpSampleCount) >= 0); // Prozatim, ale melo by platit porad
+                        memcpy(SampleBuffer_Input[Recording.first].ChannelLeft, SampleBuffer_Reordering.ChannelLeft + TmpSampleCount,
+                            SampleBuffer_Reordering.SampleCount - TmpSampleCount);
+                            
+                        memcpy(SampleBuffer_Input[Recording.first].ChannelRight, SampleBuffer_Reordering.ChannelRight + TmpSampleCount,
+                            SampleBuffer_Reordering.SampleCount - TmpSampleCount);
+                        
+                        SampleBuffer_Input[Recording.first].SampleCount = SampleBuffer_Reordering.SampleCount - TmpSampleCount;
+                    }
+                }
+            }
+        }
+        else // Silence, no mixing
+        {
+            uint16_t Task_SampleCountDuplicate = Task.SampleCount;
+            if ( (SampleBuffer_Output.SampleCount + Task.SampleCount) >= PACKET_MP3_SAMPLE_COUNT)
+            {
+                do
+                {
+                    memset(SampleBuffer_Output.ChannelLeft + SampleBuffer_Output.SampleCount, 0,
+                        sizeof(float) * (PACKET_MP3_SAMPLE_COUNT - SampleBuffer_Output.SampleCount) );
+                    
+                    memset(SampleBuffer_Output.ChannelRight + SampleBuffer_Output.SampleCount, 0,
+                        sizeof(float) * (PACKET_MP3_SAMPLE_COUNT - SampleBuffer_Output.SampleCount) );
+                    
+                    uint16_t TmpSampleCount = PACKET_MP3_SAMPLE_COUNT - SampleBuffer_Output.SampleCount;
+                    SampleBuffer_Output.SampleCount = PACKET_MP3_SAMPLE_COUNT;
+                    
+                    // Write this frame from SampleBuffer_Output
+                    
+                    SampleBuffer_Output.SampleCount = 0;
+                    Task_SampleCountDuplicate -= TmpSampleCount;
+                } while (Task_SampleCountDuplicate >= PACKET_MP3_SAMPLE_COUNT);
+            }
+            
+            // Store the rest (< PACKET_MP3_SAMPLE_COUNT) into SampleBuffer_Output (may be 0 samples, too)
+            memset(SampleBuffer_Output.ChannelLeft + SampleBuffer_Output.SampleCount, 0, sizeof(float) * Task_SampleCountDuplicate);
+            memset(SampleBuffer_Output.ChannelRight + SampleBuffer_Output.SampleCount, 0, sizeof(float) * Task_SampleCountDuplicate);
+            SampleBuffer_Output.SampleCount += Task_SampleCountDuplicate;
+        }
+    }
+}
+
+int32_t Ffmpeg_t::trackStartCorrection(AVFormatContext *Track, uint64_t DiscardSampleCount, SampleBuffer_t &InputBuffer)
+{
+    SampleBuffer_t SampleBuffer_Reordering = {{0}, {0}, 0};
+    
+    int32_t ErrCode = getInputAudioSamples(Track, SampleBuffer_Reordering);
+    if (ErrCode) return ErrCode;
+    
+    while (DiscardSampleCount > PACKET_WAV_SAMPLE_COUNT)
+    {
+        ErrCode = getInputAudioSamples(Track, SampleBuffer_Reordering);
+        if (ErrCode) return ErrCode;
+        if (DiscardSampleCount > PACKET_WAV_SAMPLE_COUNT) DiscardSampleCount -= PACKET_WAV_SAMPLE_COUNT;
+    }
+    
+    memcpy(InputBuffer.ChannelLeft, SampleBuffer_Reordering.ChannelLeft + DiscardSampleCount, PACKET_WAV_SAMPLE_COUNT - DiscardSampleCount);
+    memcpy(InputBuffer.ChannelRight, SampleBuffer_Reordering.ChannelRight + DiscardSampleCount, PACKET_WAV_SAMPLE_COUNT - DiscardSampleCount);
+    
+    return 0;
+}
+
+// Pak tam pude jako parametr i vstupni video kvuli nastaveni parametru
+void Ffmpeg_t::initOutputFile(std::string &OutputFile, uint8_t ExportComponents, std::map<uint32_t, AVFormatContext *> &InputTracks)
+{
+    int32_t ErrCode = avformat_alloc_output_context2(&Container_Out, nullptr, "mp3", nullptr);
+    if (ErrCode < 0)
+    {
+        cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_INPUT_TRACKS, InputTracks);
+        throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_ALLOC, ErrCode);
+    }
+    
+    AVStream *Stream_Out = avformat_new_stream(Container_Out, avcodec_find_decoder(AV_CODEC_ID_MP3) );
+    if (!Stream_Out)
+    {
+        cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVFORMAT_OUTPUT, InputTracks);
+        throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_NEW_STREAM, 0);
+    }
+    
+    // ABR mode should be off
+    Stream_Out->id = 0;
+    Stream_Out->time_base = {1, 44100};
+    Stream_Out->codec->sample_fmt = AV_SAMPLE_FMT_S16P;
+    Stream_Out->codec->sample_rate = 44100;
+    Stream_Out->codec->flags |= AV_CODEC_FLAG_QSCALE; // pokud nenastavim, bude 320k CBR
+    Stream_Out->codec->global_quality = 0;
+    Stream_Out->codec->compression_level = 2;
+    Stream_Out->codec->bit_rate = 320000;
+    Stream_Out->codec->channel_layout = AV_CH_LAYOUT_STEREO;
+    Stream_Out->codec->channels = 2;
+    Stream_Out->codec->codec_tag = 0;
+    
+    if (Container_Out->oformat->flags & AVFMT_GLOBALHEADER) Stream_Out->codec->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+    
+    ErrCode = avio_open(&Container_Out->pb, OutputFile.c_str(), AVIO_FLAG_WRITE);
+    if (ErrCode < 0)
+    {
+        cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVFORMAT_OUTPUT, InputTracks);
+        throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_OPEN_FILE, ErrCode);
+    }
+    
+    ErrCode = avformat_write_header(Container_Out, nullptr);
+    if (ErrCode < 0)
+    {
+        cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVIO, InputTracks);
+        throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_WRITE_HEADER, ErrCode);
+    }
+}
+
+int32_t Ffmpeg_t::getInputAudioSamples(AVFormatContext *InputTrack, SampleBuffer_t &SampleBuffer_Reordering)
+{
+    int32_t ErrCode = av_read_frame(InputTrack, &Packet);
+    if (ErrCode < 0) return ErrCode;
+    
+    SampleBuffer_Reordering.SampleCount = Packet.duration;
+    uint16_t *TmpPtr = reinterpret_cast<uint16_t *>(Packet.data);
+    
+    // parallel
+    for (uint16_t i = 0; i < Packet.duration; i++)
+    {
+        SampleBuffer_Reordering.ChannelLeft[i] = TmpPtr[i << 1];
+        SampleBuffer_Reordering.ChannelRight[i] = TmpPtr[(i << 1) + 1];
+    }
+    
+    av_packet_unref(&Packet);
+    
+    return 0;
+}
+
+void Ffmpeg_t::storeSamplesIntoOutputBuffer_variant(SampleBuffer_t &InputBuffer, OutputBuffer_t &SampleBuffer_Output, uint64_t Task_SampleCount)
+{
+    // parallel
+    for (uint16_t i = 0; i < Task_SampleCount; i++)
+    {
+        SampleBuffer_Output.ChannelLeft[SampleBuffer_Output.SampleCount + i] = static_cast<float>(InputBuffer.ChannelLeft[i]);
+        SampleBuffer_Output.ChannelRight[SampleBuffer_Output.SampleCount + i] = static_cast<float>(InputBuffer.ChannelRight[i]);
+    }
+    
+    memmove(InputBuffer.ChannelLeft, InputBuffer.ChannelLeft + Task_SampleCount, InputBuffer.SampleCount - Task_SampleCount);
+    memmove(InputBuffer.ChannelRight, InputBuffer.ChannelRight + Task_SampleCount, InputBuffer.SampleCount - Task_SampleCount);
+    
+    InputBuffer.SampleCount -= Task_SampleCount;
+    SampleBuffer_Output.SampleCount += Task_SampleCount;
 }
