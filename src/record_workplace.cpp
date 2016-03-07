@@ -2,20 +2,21 @@
 
 RecordWorkplace::RecordWorkplace(QWidget *parent) : QWidget(parent)
 {
-
+    mouseMove = false;
 }
 
 void RecordWorkplace::mouseMoveEvent(QMouseEvent *event) {
-
+    mouseMove = true;
 }
 
 void RecordWorkplace::mousePressEvent(QMouseEvent *event) {
-    if(event->buttons() & Qt::LeftButton) {
-        sliderPositionChanged(event->pos().x());
-    }
+
 }
 
 void RecordWorkplace::mouseReleaseEvent(QMouseEvent *event) {
-
+    if (mouseMove == false) {
+        sliderPositionChanged(event->pos().x());
+    }
+    mouseMove = false;
 }
 

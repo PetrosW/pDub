@@ -23,6 +23,7 @@ Record::Record(int id, int startTime, int endTime, QString name, QWidget *parent
 
 void Record::mousePressEvent(QMouseEvent *event) {
     if(event->button() == Qt::LeftButton) {
+        this->raise();
         dragStartPositionX = this->x();
         dragMouseOffsetX = event->pos().x();
 
