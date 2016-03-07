@@ -21,6 +21,7 @@ class Window_Video_t : public QWidget
         void firstPlay(QString FileName);
         int getPlayerPosition();
         bool isPaused();
+        bool sliderEditorSeek;
 
     private:
         Window_Control_t *Window_Control_Ptr;
@@ -40,9 +41,13 @@ class Window_Video_t : public QWidget
 
         void createUi();
 
+    signals:
+        void positionVideoChanged(qint64 pos);
+
     public slots:
         void play();
         void pause();
+        void updateVideoPositionEditorSlider(uint32_t pos);
 
     private slots:
         void playInit();

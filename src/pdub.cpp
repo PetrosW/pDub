@@ -21,12 +21,13 @@ PDub::PDub(int &argc, char *argv[])
     qDebug() << AvSize.width();
     qDebug() << AvSize.height();
 
+    Window_Editor.createUi();
 
-    Window_Control.move(AvSize.width()/2, 0);
-    Window_Video.move(0, 0);
-    Window_Editor.move(0, AvSize.height()/2);
+    Window_Control.setDeafaultMicrophone();
 
-    Window_Control.resize(200,200);
+    //Window_Control.resize(400,400);
+    //Window_Video.resize(400,400);
+    //Window_Editor.resize(400,400);
 
     //QRect *Window_Control_Geometry = &Window_Control.frameGeometry();
 
@@ -39,14 +40,16 @@ PDub::PDub(int &argc, char *argv[])
     qDebug() << Frame_Height;
     qDebug() << Frame_Width;
 
-    //Window_Control.resize(AvSize.width()/2, AvSize.height()/2);
-    //Window_Video.resize(AvSize.width()/2, AvSize.height()/2);
-    //Window_Editor.resize(AvSize.width(), AvSize.height()/2);
-
     Window_Control.resize(AvSize.width()/2 - Frame_Width, AvSize.height()/2 - Frame_Height);
     Window_Video.resize(AvSize.width()/2 - Frame_Width, AvSize.height()/2 - Frame_Height);
     Window_Editor.resize(AvSize.width() - Frame_Width, AvSize.height()/2 - Frame_Height);
 
-    Window_Control.setDeafaultMicrophone();
+    Window_Control.move(0, 0);
+    Window_Video.move(Window_Control.frameGeometry().width(), 0);
+    Window_Editor.move(0, Window_Control.frameGeometry().height());
+
+    qDebug() << Window_Control.pos();
+    qDebug() << Window_Video.pos();
+    qDebug() << Window_Editor.pos();
 
 }

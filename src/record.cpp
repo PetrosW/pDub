@@ -1,7 +1,7 @@
 #include <record.hpp>
 
 Record::Record(int id, int startTime, int endTime, QString name, QWidget *parent) :
-    QWidget(parent), EndTime(endTime), Id(id), Name(name), StartTime(startTime)
+    Id(id), StartTime(startTime), EndTime(endTime), Name(name), QWidget(parent)
 {
     qDebug() << "record object";
     qDebug() << parent;
@@ -12,7 +12,7 @@ Record::Record(int id, int startTime, int endTime, QString name, QWidget *parent
 
 
     this->setGeometry(startTime / 100, 0, (endTime - startTime) / 100, 50);
-    this->setToolTip("StartTime: " + QString::number(StartTime));
+    this->setToolTip("StartTime: " + QString::number(StartTime) + "\n" + "EndTime: " + QString::number(EndTime));
     this->setToolTipDuration(0);
 
     QPalette Pal(palette());
@@ -29,7 +29,10 @@ void Record::mousePressEvent(QMouseEvent *event) {
 
         QPalette Pal(palette());
         Pal.setColor(QPalette::Background, Qt::blue);
+        this->setAutoFillBackground(true);
+        this->setPalette(Pal);
     }
+    event->ignore();
 }
 
 void Record::mouseMoveEvent(QMouseEvent *event) {
@@ -53,14 +56,25 @@ void Record::mouseMoveEvent(QMouseEvent *event) {
             this->move(movePoint);
         }
     }
+    event->ignore();
 }
 
 void Record::mouseReleaseEvent(QMouseEvent *event) {
     if(event->button() == Qt::LeftButton) {
-        int tmp = StartTime + ((this->x() - dragStartPositionX) * 100);
+        // konstatnta 100 == aktuální zoom
+
+        int tmp = ((this->x() - dragStartPositionX) * 100);
         StartTime = StartTime + tmp;
         EndTime = EndTime + tmp;
+
     }
+    this->setToolTip("StartTime: " + QString::number(StartTime) + "\n" + "EndTime: " + QString::number(EndTime));
+    this->setToolTipDuration(0);
+    QPalette Pal(palette());
+    Pal.setColor(QPalette::Background, Qt::darkGreen);
+    this->setAutoFillBackground(true);
+    this->setPalette(Pal);
+    event->ignore();
 }
 
 

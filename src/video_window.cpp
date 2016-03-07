@@ -23,8 +23,10 @@ Window_Video_t::Window_Video_t(Window_Control_t *Window_Control, QWidget *Window
     Player->audio()->setVolume(0.8);
 
     connect(Player, &QtAV::AVPlayer::started, this, &Window_Video_t::playInit);
-    connect(Player, SIGNAL(seekFinished(qint64)), this, SLOT(onSeekFinished(qint64)));
+    //connect(Player, SIGNAL(seekFinished(qint64)), this, SLOT(onSeekFinished(qint64)));
     Layout->addWidget(VideoOutput->widget(), 0, 0);
+
+    sliderEditorSeek = false;
 
     createUi();
 
@@ -48,7 +50,9 @@ void Window_Video_t::createUi() {
 
     SliderVideoTime->setTickInterval(1);
     connect(SliderVideoTime, SIGNAL(sliderMoved(int)), this, SLOT(updateVideoTimePositionSliderMove(int)));
-    connect(Player, SIGNAL(positionChanged(qint64)), this, SLOT(updateSilderTimeValue(qint64)));
+    connect(Player, &QtAV::AVPlayer::positionChanged, this, &Window_Video_t::updateSilderTimeValue);
+    connect(Player, &QtAV::AVPlayer::positionChanged, this, &Window_Video_t::positionVideoChanged);
+
 
     Layout->addWidget(SliderVideoTime, 1, 0);
 
@@ -110,6 +114,14 @@ void Window_Video_t::pause() {
     Player->pause(true);
 }
 
+void Window_Video_t::updateVideoPositionEditorSlider(uint32_t pos) {
+    //qDebug() << "time update slider";
+    disconnect(Player, &QtAV::AVPlayer::positionChanged, this, &Window_Video_t::positionVideoChanged);
+    sliderEditorSeek = true;
+    Player->seek(qint64(pos * 100));
+    connect(Player, &QtAV::AVPlayer::positionChanged, this, &Window_Video_t::positionVideoChanged);
+}
+
 // private slots
 void Window_Video_t::playInit() {
     SliderVideoTime->setMaximum(Player->duration());
@@ -140,8 +152,13 @@ void Window_Video_t::updateVideoTimePositionSliderPressed() {
 }
 
 void Window_Video_t::updateSilderTimeValue(qint64 newSliderPosition) {
+    //positionVideoChanged(newSliderPosition);
     SliderVideoTime->setValue(newSliderPosition);
     LabelVideoTime->setText(miliSecToTime(newSliderPosition));
+    if (sliderEditorSeek == false) {
+        positionVideoChanged(newSliderPosition);
+    }
+    sliderEditorSeek = false;
 }
 
 void Window_Video_t::seekBackward() {
@@ -149,7 +166,5 @@ void Window_Video_t::seekBackward() {
 }
 
 void Window_Video_t::seekForward() {
-
     Player->seek(Player->position() + 5000);
-
 }

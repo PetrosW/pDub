@@ -49,8 +49,6 @@ void Window_Control_t::createUi() {
 
     ControlLayout = new QGridLayout();
     Layout->addLayout(ControlLayout, 0, 0);
-
-
 }
 
 void Window_Control_t::createToolBar() {
@@ -67,22 +65,22 @@ void Window_Control_t::createToolBar() {
 
     A_newProject = new QAction(tr("&New"), this);
     A_newProject->setShortcuts(QKeySequence::New);
-    A_newProject->setStatusTip(tr("Create a new project"));
+    A_newProject->setToolTip(tr("Create a new project"));
     connect(A_newProject, SIGNAL(triggered()), this, SLOT(newProjectDialog()));
 
     A_loadProject = new QAction(tr("&Open"), this);
     A_loadProject->setShortcuts(QKeySequence::Open);
-    A_loadProject->setStatusTip(tr("O a old Project"));
+    A_loadProject->setToolTip(tr("O a old Project"));
     connect(A_loadProject, SIGNAL(triggered()), this, SLOT(loadProject()));
 
     A_saveProject = new QAction(tr("&Save"), this);
     A_saveProject->setShortcuts(QKeySequence::Save);
-    A_saveProject->setStatusTip(tr("Save a project"));
+    A_saveProject->setToolTip(tr("Save a project"));
     connect(A_saveProject, SIGNAL(triggered()), this, SLOT(saveProject()));
 
     A_exportProject = new QAction(tr("&Export"), this);
     A_exportProject->setShortcut(tr("Ctrl+E"));
-    A_exportProject->setStatusTip(tr("Export a project"));
+    A_exportProject->setToolTip(tr("Export a project"));
     connect(A_exportProject, SIGNAL(triggered()), this, SLOT(exportProject()));
 
     MenuBar->addAction(A_newProject);
@@ -126,6 +124,11 @@ void Window_Control_t::loadProject() {
 
     if (!file.open(QIODevice::ReadOnly | QFile::Text))
         return;
+
+    foreach(Record *item, Window_Editor_Ptr->MapRecord) {
+        delete item;
+    }
+    Window_Editor_Ptr->MapRecord.clear();
 
     //listOfRecords.clear(); // čištění při opětovném nahrávání
     QXmlStreamReader xmlReader(&file);

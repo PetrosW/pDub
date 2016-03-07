@@ -25,7 +25,9 @@ HEADERS = include/common.hpp \
           include/ffmpeg/error_codes.hpp \
           include/ffmpeg/exception.hpp \
           include/ffmpeg/ffmpeg.hpp \
-          include/dialogs/newproject_dialog.hpp
+          include/dialogs/newproject_dialog.hpp \
+          include/slider_editor.hpp \
+          include/record_workplace.hpp \
 
 
 
@@ -39,4 +41,6 @@ SOURCES = src/main.cpp \
           src/common.cpp \
           src/ffmpeg/exception.cpp \
           src/ffmpeg/ffmpeg.cpp \
-          src/newproject_dialog.cpp
+          src/newproject_dialog.cpp \
+          src/slider_editor.cpp \
+          src/record_workplace.cpp \

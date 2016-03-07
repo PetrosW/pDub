@@ -6,8 +6,10 @@
 
 #include <common.hpp>
 #include <record.hpp>
+#include <slider_editor.hpp>
 #include <windows/control_window.hpp>
 #include <windows/video_window.hpp>
+#include <record_workplace.hpp>
 
 class Window_Editor_t : public QWidget
 {
@@ -15,10 +17,12 @@ class Window_Editor_t : public QWidget
 
     public:
         Window_Editor_t(Window_Control_t *Window_Control, QWidget *Window_Control_QWidget);
-        void setWindowVideoPtr(Window_Video_t *Window_Video);
-        void setAfterVideoLoad(qint64 duration);
 
         QMap<int, Record *> MapRecord;
+
+        void setWindowVideoPtr(Window_Video_t *Window_Video);
+        void setAfterVideoLoad(qint64 duration);
+        void createUi();
 
     private:
 
@@ -28,10 +32,20 @@ class Window_Editor_t : public QWidget
         QGridLayout *Layout;
         QGridLayout *ControlLayout;
 
-        QWidget *SliderWidget;
-        QWidget *WorkPlaceWidget;
+        SliderEditor *SliderEditorControl;
 
-        QScrollArea *WorkPlaceScrollArea;
+        QWidget *WidgetSlider;
+        QWidget *WidgetWorkPlace;
+        RecordWorkplace *WidgetRecordWorkPlace;
+
+        QWidget *SliderLine;
+
+        QScrollArea *ScrollAreaEditorTimeSlider;
+        QScrollBar *ScrollBarEditorTimeSliderHorizontal;
+
+        QScrollArea *ScrollAreaWorkPlace;
+        QScrollBar *ScrollBarWorkPlaceVertical;
+        QScrollBar *ScrollBarWorkPlaceHorizontal;
 
         QPushButton *ButtonDelete;
         QPushButton *ButtonSplit;
@@ -45,13 +59,21 @@ class Window_Editor_t : public QWidget
         QLabel *LabelRecordStartTime;
         QLabel *LabelRecordEndTime;
 
-        void createUi();
+
+
+    protected:
+        void paintEvent(QPaintEvent *);
+
+    signals:
+        void sliderLinePositionChanged(uint32_t pos);
 
     private slots:
         void addRow();
+        void setScrollAreaEditorTimeSliderValue(int pos);
+        void setSliderLinePositionFromVideo(qint64 pos);
 
     public slots:
-
+        void setSliderLinePosition(uint32_t pos);
         void addNewRecordObject(int RecordID, int StartTime, int EndTime, QString Name);
 };
 
