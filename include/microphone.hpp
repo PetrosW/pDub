@@ -36,9 +36,9 @@ class Microphone : public QWidget
         QPushButton *ButtonRecord;
         QPushButton *ButtonPause;
 
-        int DurationTime;
-        int StartTime;
-        int EndTime;
+        uint32_t DurationTime;
+        uint32_t StartTime;
+        uint32_t EndTime;
 
     private slots:
         void startRecord();
@@ -46,7 +46,7 @@ class Microphone : public QWidget
         void timerRecordTick();
 
     signals:
-        void recordingEnd(int RecordId, int StartTime, int EndTime, QString Name);
+        void recordingEnd(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name);
 };
 
 #endif // MICROPHONE

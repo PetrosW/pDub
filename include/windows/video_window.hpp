@@ -23,6 +23,8 @@ class Window_Video_t : public QWidget
         bool isPaused();
         bool sliderEditorSeek;
 
+        void createUi();
+
     private:
         Window_Control_t *Window_Control_Ptr;
         Window_Editor_t *Window_Editor_Ptr;
@@ -39,15 +41,18 @@ class Window_Video_t : public QWidget
         QSlider *SliderVideoTime;
         QSlider *SliderVideoVolume;
 
-        void createUi();
+        bool isPlayingSliderPress; // pomocna pro urcovani pausi pred kliknutim na slider
+        bool isPlaying;
 
     signals:
         void positionVideoChanged(qint64 pos);
+        void signalVideoTimePositionSliderMove();
 
     public slots:
         void play();
         void pause();
         void updateVideoPositionEditorSlider(uint32_t pos);
+
 
     private slots:
         void playInit();
@@ -57,6 +62,7 @@ class Window_Video_t : public QWidget
         void updateSilderTimeValue(qint64 newSliderPosition);
         void updateVideoTimePositionSliderMove(int newPlayerTimePosition);
         void updateVideoTimePositionSliderPressed();
+        void sliderPressRelease();
 };
 
 #endif

@@ -60,7 +60,7 @@ void Microphone::startRecord() {
     if (Window_Video_Ptr->isPaused() == true) {
         Window_Video_Ptr->play();
     }
-    AudioRecorder->setOutputLocation(QUrl::fromLocalFile(QDir::currentPath() + "//" + "record" + QString::number(Window_Control_Ptr->NextRecordId) + ".wav"));
+    AudioRecorder->setOutputLocation(QUrl::fromLocalFile(Window_Control_Ptr->RecordPath() + "//" + "record" + QString::number(Window_Control_Ptr->NextRecordId) + ".wav"));
     AudioRecorder->record();
 
 

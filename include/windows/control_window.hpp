@@ -15,14 +15,21 @@
 class Window_Control_t : public QMainWindow
 {
     Q_OBJECT
+    Q_PROPERTY(QString ProjectFolder READ ProjectFolder WRITE setProjectFolder NOTIFY ProjectFolderChanged)
+    Q_PROPERTY(QString RecordPath READ RecordPath WRITE setRecordPath NOTIFY RecordPathChanged)
 
     public:
         Window_Control_t(QMainWindow *parent = 0);
         void setWindowEditorPtr(Window_Editor_t *Window_Editor);
         void setWindowVideoPtr(Window_Video_t *Window_Video);
         void setDeafaultMicrophone();
+        QString getProjectFolder();
 
         int NextRecordId;
+
+        QString ProjectFolder() const { return m_ProjectFolder; }
+        QString RecordPath() const { return m_RecordPath; }
+
 
     private:
         Window_Editor_t *Window_Editor_Ptr;
@@ -44,9 +51,16 @@ class Window_Control_t : public QMainWindow
 
         QString ProjectName;
         QString VideoFilePath;
-        QString ProjectFolder;
+        QString m_ProjectFolder;
         QString TmpPath;
-        QString RecordPath;
+        QString m_RecordPath;
+
+        void setProjectFolder(const QString &a) { m_ProjectFolder = a; ProjectFolderChanged(); }
+        void setRecordPath(const QString &a) { m_RecordPath = a; RecordPathChanged(); }
+
+    signals:
+        void ProjectFolderChanged();
+        void RecordPathChanged();
 
     private slots:
         void newProject(QString projectName, QString videoFilePath, QString projectFolder);

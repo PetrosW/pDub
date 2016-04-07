@@ -27,8 +27,8 @@ Window_Video_t::Window_Video_t(Window_Control_t *Window_Control, QWidget *Window
     Layout->addWidget(VideoOutput->widget(), 0, 0);
 
     sliderEditorSeek = false;
-
-    createUi();
+    isPlayingSliderPress = false;
+    isPlaying = false;
 
     show();
 }
@@ -49,7 +49,10 @@ void Window_Video_t::createUi() {
     SliderVideoTime->setMinimum(0);
 
     SliderVideoTime->setTickInterval(1);
-    connect(SliderVideoTime, SIGNAL(sliderMoved(int)), this, SLOT(updateVideoTimePositionSliderMove(int)));
+    connect(SliderVideoTime, &QSlider::sliderMoved, this, &Window_Video_t::updateVideoTimePositionSliderMove);
+    connect(SliderVideoTime, &QSlider::sliderReleased, this, &Window_Video_t::signalVideoTimePositionSliderMove);
+    connect(SliderVideoTime, &QSlider::sliderReleased, this, &Window_Video_t::sliderPressRelease);
+    connect(SliderVideoTime, &QSlider::sliderPressed, this, &Window_Video_t::sliderPressRelease);
     connect(Player, &QtAV::AVPlayer::positionChanged, this, &Window_Video_t::updateSilderTimeValue);
     connect(Player, &QtAV::AVPlayer::positionChanged, this, &Window_Video_t::positionVideoChanged);
 
@@ -72,6 +75,7 @@ void Window_Video_t::createUi() {
 
     ButtonPlay = new QPushButton("Play", this);
     connect(ButtonPlay, SIGNAL(clicked()), this, SLOT(play()));
+    //connect(ButtonPlay, &QPushButton::clicked, Window_Editor_Ptr, &Window_Editor_t::videoPausePlayFromVideo);
     ButtonPlay->setEnabled(false);
     LayoutVideoControl->addWidget(ButtonPlay, 0, 2);
 
@@ -96,7 +100,7 @@ int Window_Video_t::getPlayerPosition() {
 }
 
 bool Window_Video_t::isPaused() {
-    return Player->isPaused();
+    return !isPlaying;
 }
 
 // public slots
@@ -105,6 +109,9 @@ void Window_Video_t::play() {
     disconnect(ButtonPlay, SIGNAL(clicked()), this, SLOT(play()));
     connect(ButtonPlay, SIGNAL(clicked()), this, SLOT(pause()));
     Player->pause(false);
+    isPlayingSliderPress = true;
+    isPlaying = true;
+    Window_Editor_Ptr->videoPausePlayFromVideo(false);
 }
 
 void Window_Video_t::pause() {
@@ -112,6 +119,9 @@ void Window_Video_t::pause() {
     disconnect(ButtonPlay, SIGNAL(clicked()), this, SLOT(pause()));
     connect(ButtonPlay, SIGNAL(clicked()), this, SLOT(play()));
     Player->pause(true);
+    isPlayingSliderPress = false;
+    isPlaying = false;
+    Window_Editor_Ptr->videoPausePlayFromVideo(true);
 }
 
 void Window_Video_t::updateVideoPositionEditorSlider(uint32_t pos) {
@@ -129,12 +139,12 @@ void Window_Video_t::playInit() {
     //Player->setBufferMode(QtAV::BufferTime);
     //120000000 = 120 MB
     //Player->setBufferValue(60000);
-    Player->setSeekType(QtAV::AccurateSeek);
+    Player->setSeekType(QtAV::AnyFrameSeek);
     while (!Player->isPlaying() || !Player->isPaused()) {
         if (Player->isPlaying()) {
             Player->setPosition(qint64(0));
             Player->pause(true);
-            Player->setSeekType(QtAV::AccurateSeek);
+            Player->setSeekType(QtAV::AnyFrameSeek);
         }
     }
 }
@@ -167,4 +177,18 @@ void Window_Video_t::seekBackward() {
 
 void Window_Video_t::seekForward() {
     Player->seek(Player->position() + 5000);
+}
+
+void Window_Video_t::sliderPressRelease() {
+    if (isPlayingSliderPress == true) {
+        bool check = Player->isPaused();
+        qDebug() << Player->isPaused();
+        Player->pause(!Player->isPaused());
+        qDebug() << Player->isPaused();
+        while(check == Player->isPaused()) {
+            qDebug() << "checkuju";
+        }
+        isPlaying = Player->isPaused();
+        Window_Editor_Ptr->videoPausePlayFromVideo(isPlaying);
+    }
 }

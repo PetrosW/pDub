@@ -1,15 +1,22 @@
 #ifndef EDITOR_WINDOW_HPP
 #define EDITOR_WINDOW_HPP
 
+
+#include <record.hpp>
 #include <QWidget>
 #include <QMap>
+#include <QtAV>
+#include <QMediaPlayer>
+#include <QVector>
+#include <QTimer>
 
 #include <common.hpp>
-#include <record.hpp>
+
 #include <slider_editor.hpp>
 #include <windows/control_window.hpp>
 #include <windows/video_window.hpp>
 #include <record_workplace.hpp>
+
 
 class Window_Editor_t : public QWidget
 {
@@ -18,16 +25,27 @@ class Window_Editor_t : public QWidget
     public:
         Window_Editor_t(Window_Control_t *Window_Control, QWidget *Window_Control_QWidget);
 
-        QMap<int, Record *> MapRecord;
+        QMap<uint32_t, QMap<uint32_t, Record *> > MapTimeRecord;
+        QMap<uint32_t, Record *> MapRecord;
+
+        Ffmpeg_t *m_ffmpeg;
 
         void setWindowVideoPtr(Window_Video_t *Window_Video);
         void setAfterVideoLoad(qint64 duration);
         void createUi();
 
+
+
     private:
 
         Window_Control_t *Window_Control_Ptr;
         Window_Video_t *Window_Video_Ptr;
+
+        QVector<QtAV::AVPlayer *> VectorMediaPlayer;
+
+        QTimer *TimerNextPlayRecord;
+        uint32_t NextPlayingStartTime;
+        uint32_t NextPlayintId;
 
         QGridLayout *Layout;
         QGridLayout *ControlLayout;
@@ -71,10 +89,14 @@ class Window_Editor_t : public QWidget
         void addRow();
         void setScrollAreaEditorTimeSliderValue(int pos);
         void setSliderLinePositionFromVideo(qint64 pos);
+        void updateRecordPlayer();
+        void updateRecordPlayerTimer();
+        void relocateRecordInMap(uint32_t RecordID, uint32_t OldStartTime);
 
     public slots:
         void setSliderLinePosition(uint32_t pos);
-        void addNewRecordObject(int RecordID, int StartTime, int EndTime, QString Name);
+        void videoPausePlayFromVideo(bool isPause);
+        void addNewRecordObject(uint32_t RecordID, uint32_t StartTime, uint32_t EndTime, QString Name);
 };
 
 #endif

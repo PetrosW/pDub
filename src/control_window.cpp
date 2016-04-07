@@ -32,7 +32,7 @@ void Window_Control_t::setDeafaultMicrophone(){
 
 void Window_Control_t::newMicrophone() {
     Microphone *mic1 = new Microphone(this, Window_Video_Ptr, this);
-    connect(mic1, SIGNAL(recordingEnd(int, int,int,QString)), Window_Editor_Ptr, SLOT(addNewRecordObject(int, int,int,QString)));
+    connect(mic1, SIGNAL(recordingEnd(uint32_t, uint32_t, uint32_t, QString)), Window_Editor_Ptr, SLOT(addNewRecordObject(uint32_t, uint32_t, uint32_t, QString)));
     Layout->addWidget(mic1, 0, 1);
     Layout->setColumnMinimumWidth(1, 100);
 }
@@ -99,7 +99,7 @@ void Window_Control_t::createToolBar() {
 void Window_Control_t::newProject(QString projectName, QString videoFilePath, QString projectFolder) {
     ProjectName = projectName;
     VideoFilePath = videoFilePath;
-    ProjectFolder = projectFolder;
+    m_ProjectFolder = projectFolder;
     Window_Video_Ptr->firstPlay(VideoFilePath);
 }
 
@@ -125,10 +125,14 @@ void Window_Control_t::loadProject() {
     if (!file.open(QIODevice::ReadOnly | QFile::Text))
         return;
 
-    foreach(Record *item, Window_Editor_Ptr->MapRecord) {
-        delete item;
+
+    foreach (auto map, Window_Editor_Ptr->MapTimeRecord) {
+        foreach(Record *item, map) {
+            delete item;
+        }
+        map.clear();
     }
-    Window_Editor_Ptr->MapRecord.clear();
+    Window_Editor_Ptr->MapTimeRecord.clear();
 
     //listOfRecords.clear(); // čištění při opětovném nahrávání
     QXmlStreamReader xmlReader(&file);
@@ -137,10 +141,10 @@ void Window_Control_t::loadProject() {
     ProjectName = xmlReader.readElementText();
     xmlReader.readNextStartElement();  //<projectPath>
     xmlReader.readElementText();
-    ProjectFolder = fileInfo.absolutePath();
+    m_ProjectFolder = fileInfo.absolutePath();
 
-    RecordPath = ProjectFolder + "/records";
-    TmpPath = ProjectFolder + "/tmps";
+    m_RecordPath = m_ProjectFolder + "/records";
+    TmpPath = m_ProjectFolder + "/tmps";
 
     xmlReader.readNextStartElement();  //<videoPath>
     /*copyVideo = xmlReader.attributes().value("isCopy").toInt();
@@ -176,7 +180,7 @@ void Window_Control_t::loadProject() {
             NextRecordId = id + 1;
         }
     }
-    QDir().mkdir(RecordPath);
+    QDir().mkdir(m_RecordPath);
 
     /*listOfRecordsSave.clear();
     foreach (int i, listOfRecords.keys()) {
@@ -189,7 +193,7 @@ void Window_Control_t::loadProject() {
 }
 void Window_Control_t::saveProject() {
 
-    QFile file(ProjectFolder + "/" + ProjectName + ".pDab");
+    QFile file(m_ProjectFolder + "/" + ProjectName + ".pDab");
     if (!file.open(QFile::WriteOnly | QFile::Text)) {
         return;
     }
@@ -199,7 +203,7 @@ void Window_Control_t::saveProject() {
     xmlWriter.writeStartDocument();
     xmlWriter.writeStartElement("pDab");
     xmlWriter.writeTextElement("projectName", ProjectName);
-    xmlWriter.writeTextElement("projectFolder", ProjectFolder);
+    xmlWriter.writeTextElement("projectFolder", m_ProjectFolder);
 
     xmlWriter.writeStartElement("videoFilePath");
     /*xmlWriter.writeAttribute("isCopy", QString::number(copyVideo));
@@ -212,17 +216,19 @@ void Window_Control_t::saveProject() {
     //}
     xmlWriter.writeEndElement();
 
-
-    foreach (Record *value, Window_Editor_Ptr->MapRecord) {
-        xmlWriter.writeStartElement("record");
-        xmlWriter.writeAttribute("id", QString::number(value->Id));
-        xmlWriter.writeTextElement("recordName", value->Name);
-        xmlWriter.writeTextElement("startTime", QString::number(value->StartTime));
-        //xmlWriter.writeTextElement("color", value.color);
-        //xmlWriter.writeTextElement("row", QString::number(value.row));
-        xmlWriter.writeTextElement("endTime", QString::number(value->EndTime));
-        xmlWriter.writeEndElement();
+    foreach (auto map, Window_Editor_Ptr->MapTimeRecord) {
+        foreach(Record *item, map) {
+            xmlWriter.writeStartElement("record");
+            xmlWriter.writeAttribute("id", QString::number(item->Id()));
+            xmlWriter.writeTextElement("recordName", item->Name());
+            xmlWriter.writeTextElement("startTime", QString::number(item->StartTime()));
+            //xmlWriter.writeTextElement("color", value.color);
+            //xmlWriter.writeTextElement("row", QString::number(value.row));
+            xmlWriter.writeTextElement("endTime", QString::number(item->EndTime()));
+            xmlWriter.writeEndElement();
+        }
     }
+
     xmlWriter.writeEndElement();
 
     xmlWriter.writeEndDocument();

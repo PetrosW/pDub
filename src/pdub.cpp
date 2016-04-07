@@ -22,6 +22,7 @@ PDub::PDub(int &argc, char *argv[])
     qDebug() << AvSize.height();
 
     Window_Editor.createUi();
+    Window_Video.createUi();
 
     Window_Control.setDeafaultMicrophone();
 
