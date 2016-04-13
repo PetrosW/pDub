@@ -203,6 +203,9 @@ void Window_Editor_t::updateRecordPlayer() {
             TimerNextPlayRecord->start();
         }
     }
+    else {
+        return;
+    }
     qDebug() << "currentPos " << currentVideoPosition;
     qDebug() << "nextTime " << NextPlayingStartTime;
 
@@ -330,12 +333,14 @@ void Window_Editor_t::videoPausePlayFromVideo(bool isPause) {
                 recordPlayer->pause(false);
             }
         }
-        uint32_t currentVideoPosition = Window_Video_Ptr->getPlayerPosition();
-        uint32_t nextTime = NextPlayingStartTime - currentVideoPosition;
-        qDebug() << "currentPos " << currentVideoPosition;
-        qDebug() << "nextTime " << NextPlayingStartTime;
-        TimerNextPlayRecord->setInterval(nextTime);
-        TimerNextPlayRecord->start();
+        if (MapTimeRecord.contains(NextPlayingStartTime)) {
+            uint32_t currentVideoPosition = Window_Video_Ptr->getPlayerPosition();
+            uint32_t nextTime = NextPlayingStartTime - currentVideoPosition;
+            qDebug() << "currentPos " << currentVideoPosition;
+            qDebug() << "nextTime " << NextPlayingStartTime;
+            TimerNextPlayRecord->setInterval(nextTime);
+            TimerNextPlayRecord->start();
+        }
     }
 }
 
