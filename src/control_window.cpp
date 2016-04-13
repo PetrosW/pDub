@@ -245,6 +245,6 @@ void Window_Control_t::saveProject() {
 
 }
 void Window_Control_t::exportProject() {
-    qDebug() << "export";
+    Window_Editor_Ptr->m_ffmpeg->exportProject(Window_Editor_Ptr->MapTimeRecord, RecordPath + "/", ProjectFolder + "/output.mkv", VideoFilePath, 0, Window_Video_Ptr->videoDuration(), FfmpegExportComponents::AUDIO_VIDEO);
 }
 

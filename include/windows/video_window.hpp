@@ -22,6 +22,7 @@ class Window_Video_t : public QWidget
         int getPlayerPosition();
         bool isPaused();
         bool sliderEditorSeek;
+        uint32_t videoDuration();
 
         void createUi();
 

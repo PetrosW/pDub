@@ -103,6 +103,10 @@ bool Window_Video_t::isPaused() {
     return !isPlaying;
 }
 
+uint32_t Window_Video_t::videoDuration() {
+    return (uint32_t)Player->duration();
+}
+
 // public slots
 void Window_Video_t::play() {
     ButtonPlay->setText("Pause");

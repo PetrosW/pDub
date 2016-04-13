@@ -1,4 +1,4 @@
-QT += multimedia gui core widgets av avwidgets
+QT += multimedia gui core widgets av avwidgets printsupport
 
 unix:QMAKE_CXXFLAGS += -std=c++11
 win32:CONFIG += windows c++11
@@ -11,7 +11,7 @@ OBJECTS_DIR = objects
 
 MOC_DIR = objects
 
-INCLUDEPATH += include
+INCLUDEPATH += include qcustomplot-source
 
 LIBS += -lavcodec -lavformat -lavutil -lswresample
 
@@ -25,9 +25,12 @@ HEADERS = include/common.hpp \
           include/ffmpeg/error_codes.hpp \
           include/ffmpeg/exception.hpp \
           include/ffmpeg/ffmpeg.hpp \
+          include/ffmpeg/devices.hpp \
+          include/ffmpeg/packet_sizes.hpp \
           include/dialogs/newproject_dialog.hpp \
           include/slider_editor.hpp \
           include/record_workplace.hpp \
+          qcustomplot-source/qcustomplot.h
 
 
 
@@ -41,6 +44,8 @@ SOURCES = src/main.cpp \
           src/common.cpp \
           src/ffmpeg/exception.cpp \
           src/ffmpeg/ffmpeg.cpp \
+          src/ffmpeg/devices.cpp \
           src/newproject_dialog.cpp \
           src/slider_editor.cpp \
           src/record_workplace.cpp \
+          qcustomplot-source/qcustomplot.cpp

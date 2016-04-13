@@ -11,6 +11,7 @@
 #include <windows/editor_window.hpp>
 #include <windows/video_window.hpp>
 #include <dialogs/newproject_dialog.hpp>
+#include <ffmpeg/ffmpeg.hpp>
 
 class Window_Control_t : public QMainWindow
 {
