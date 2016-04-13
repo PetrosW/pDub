@@ -766,7 +766,7 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint32_t SplitDuration
     cleanUp_SplitTrack(FfmpegCleanUpLevelCode_SplitTrack::LEVEL_AVIO, false);
 }
 
-void Ffmpeg_t::exportProject(QMap<uint32_t, QMap<uint32_t, Record *> > &RecordingsMap, QString &Path, QString &OutputFile, QString &InputFile,
+void Ffmpeg_t::exportProject(QMap<uint32_t, QMap<uint32_t, Record *> > &RecordingsMap, QString Path, QString &OutputFile, QString &InputFile,
                              uint32_t Start, uint32_t End, uint8_t ExportComponents)
 {
     int32_t ErrCode;
