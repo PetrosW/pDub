@@ -72,9 +72,6 @@ void Ffmpeg_t::cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::Type 
         case FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVFORMAT_OUTPUT:
             avformat_free_context(Container_Out);
         
-        case FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVFORMAT_INPUT:
-            avformat_close_input(&Container_In);
-        
         default:
         return;
     }
@@ -835,7 +832,7 @@ void Ffmpeg_t::exportProject(QMap<uint32_t, QMap<uint32_t, Record *> > &Recordin
         AudioTask_t Task;
         Task.SampleCount = static_cast<uint64_t>( (Interval.EndTime - Interval.StartTime) * 44.1);
         
-        for (auto Recording: Recordings.toStdMap())
+        for (auto Recording: Recordings.toStdMap() )
         {
             if ( (Recording.second->StartTime() <= Interval.StartTime) && (Recording.second->EndTime() >= Interval.EndTime) )
             {
