@@ -14,9 +14,12 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <QMap>
+#include <QString>
 #include "exception.hpp"
 #include <ffmpeg/devices.hpp>
 #include <ffmpeg/packet_sizes.hpp>
+#include <record.hpp>
 
 class Record_1
 {
@@ -103,7 +106,7 @@ class Ffmpeg_t
         uint64_t getAudioDuration(std::string FileName);
         std::pair<std::vector<double>, std::vector<double> > getSamplesForWaveformPlotting(std::string FileName);
         void convertInputAudio(std::string FileName, std::string Id);
-        void exportProject(std::map<uint32_t, Record_1 *> &Recordings, std::string OutputFile, std::string InputFile,
+        void exportProject(QMap<uint32_t, Record *> &Recordings, QString &Path, QString &OutputFile, QString &InputFile,
                            uint32_t Start, uint32_t End, uint8_t ExportComponents);
     
     private:
@@ -119,7 +122,7 @@ class Ffmpeg_t
         uint8_t *ResamplingBuffer[1];
         int32_t ResamplingBufferSize;
         
-        void initInputFileAudio(std::string &FileName, AVFormatContext **Container = nullptr);
+        void initInputFileAudio(QString &FileName, AVFormatContext **Container = nullptr);
         void writePacketsToFile(std::string &SplitFile, uint32_t SplitDuration);
         void cleanUp_SplitTrack(FfmpegCleanUpLevelCode_SplitTrack::Type Level, bool CloseInput = 1);
         void cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::Type Level, AVFrame **Frame = nullptr, SwrContext **ResampleContext = nullptr);
@@ -128,7 +131,7 @@ class Ffmpeg_t
         void prepareOutputPacketAndWriteIt(AVPacket &Packet_Out, std::vector<uint8_t> &SampleFifo, AVFrame *Frame, SwrContext *ResampleContext, bool FreePacket);
         int32_t resample_AndStore(SwrContext *ResampleContext, AVFrame *Frame, std::vector<uint8_t> &SampleFifo);
         int32_t resample_JustStore(SwrContext *, AVFrame *Frame, std::vector<uint8_t> &SampleFifo);
-        void initOutputFile(std::string &OutputFile, std::string &InputFile, uint8_t ExportComponents);
+        void initOutputFile(QString &OutputFile, QString &InputFile, uint8_t ExportComponents);
         void cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::Type Level);
         int64_t copyVideoPacket(int64_t &Pts);
 };

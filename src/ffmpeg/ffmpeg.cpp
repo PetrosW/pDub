@@ -487,14 +487,14 @@ uint64_t Ffmpeg_t::getAudioDuration(std::string FileName)
     return Duration_miliseconds;
 }
 
-void Ffmpeg_t::initInputFileAudio(std::string &FileName, AVFormatContext **Container)
+void Ffmpeg_t::initInputFileAudio(QString &FileName, AVFormatContext **Container)
 {
     AVFormatContext *&Container_Now = (Container ? *Container : Container_In);
     
     Container_Now = avformat_alloc_context();
     if (!Container_Now) throw FfmpegException_t(FfmpegErrorCode::CONTAINER_IN_ALLOC, 0);
     
-    int32_t ErrCode = avformat_open_input(&Container_Now, FileName.c_str(), nullptr, nullptr);
+    int32_t ErrCode = avformat_open_input(&Container_Now, FileName.toStdString().c_str(), nullptr, nullptr);
     if (ErrCode < 0)
     {
         avformat_free_context(Container_Now);
@@ -511,7 +511,7 @@ void Ffmpeg_t::initInputFileAudio(std::string &FileName, AVFormatContext **Conta
     StreamIndex = 0;
     if (Container_Now->nb_streams > 1)
     {
-        fprintf(stderr, "Warning: more than 1 stream in input file %s detected. Selecting first audio stream.\n", FileName.c_str() );
+        fprintf(stderr, "Warning: more than 1 stream in input file %s detected. Selecting first audio stream.\n", FileName.toStdString().c_str() );
         while ( (StreamIndex < Container_Now->nb_streams) && (Container_Now->streams[StreamIndex]->codec->codec_type != AVMEDIA_TYPE_AUDIO) ) StreamIndex++;
     }
     
@@ -766,7 +766,7 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint32_t SplitDuration
     cleanUp_SplitTrack(FfmpegCleanUpLevelCode_SplitTrack::LEVEL_AVIO, false);
 }
 
-void Ffmpeg_t::exportProject(std::map<uint32_t, Record_1 *> &Recordings, std::string OutputFile, std::string InputFile,
+void Ffmpeg_t::exportProject(QMap<uint32_t, Record *> &Recordings, QString &Path, QString &OutputFile, QString &InputFile,
                              uint32_t Start, uint32_t End, uint8_t ExportComponents)
 {
     int32_t ErrCode;
@@ -1028,7 +1028,7 @@ void Ffmpeg_t::exportProject(std::map<uint32_t, Record_1 *> &Recordings, std::st
 }
 
 // Pak tam pude jako parametr i vstupni video kvuli nastaveni parametru
-void Ffmpeg_t::initOutputFile(std::string &OutputFile, std::string &InputFile, uint8_t ExportComponents)
+void Ffmpeg_t::initOutputFile(QString &OutputFile, QString &InputFile, uint8_t ExportComponents)
 {
     int32_t ErrCode;
     AVStream *Stream_Out;
@@ -1038,7 +1038,7 @@ void Ffmpeg_t::initOutputFile(std::string &OutputFile, std::string &InputFile, u
         Container_In = avformat_alloc_context();
         if (!Container_In) throw FfmpegException_t(FfmpegErrorCode::CONTAINER_IN_ALLOC, 0);
         
-        ErrCode = avformat_open_input(&Container_In, InputFile.c_str(), nullptr, nullptr);
+        ErrCode = avformat_open_input(&Container_In, InputFile.toStdString().c_str(), nullptr, nullptr);
         if (ErrCode < 0)
         {
             avformat_free_context(Container_In);
@@ -1056,7 +1056,7 @@ void Ffmpeg_t::initOutputFile(std::string &OutputFile, std::string &InputFile, u
         StreamIndex = 0;
         if (Container_In->nb_streams > 1)
         {
-            fprintf(stderr, "Warning: more than 1 stream in input file %s detected. Selecting first video stream.\n", InputFile.c_str() );
+            fprintf(stderr, "Warning: more than 1 stream in input file %s detected. Selecting first video stream.\n", InputFile.toStdString().c_str() );
             while ( (StreamIndex < Container_In->nb_streams) && (Container_In->streams[StreamIndex]->codec->codec_type != AVMEDIA_TYPE_VIDEO) ) StreamIndex++;
         }
         
