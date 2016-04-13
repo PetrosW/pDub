@@ -59,13 +59,10 @@ void Ffmpeg_t::cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::Type Le
     }
 }
 
-void Ffmpeg_t::cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::Type Level, std::map<uint32_t, AVFormatContext *> &InputTracks, AVFrame **Frame)
+void Ffmpeg_t::cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::Type Level)
 {
     switch (Level)
     {
-        case FfmpegCleanUpLevelCode_ExportProject::LEVEL_FRAME:
-            av_frame_free(Frame);
-        
         case FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVCODEC_CLOSE:
             avcodec_close(Container_Out->streams[0]->codec);
         
@@ -75,9 +72,8 @@ void Ffmpeg_t::cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::Type 
         case FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVFORMAT_OUTPUT:
             avformat_free_context(Container_Out);
         
-        case FfmpegCleanUpLevelCode_ExportProject::LEVEL_INPUT_TRACKS:
-            for (auto Recording: InputTracks) avformat_close_input(&Recording.second);
-        break;
+        case FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVFORMAT_INPUT:
+            avformat_close_input(&Container_In);
         
         default:
         return;
@@ -390,6 +386,9 @@ void Ffmpeg_t::convertInputAudio(std::string FileName, std::string Id)
         prepareOutputPacketAndWriteIt(Packet_Out, SampleFifo, Frame, ResampleContext, false);
     }
     
+    // Flush the interleaving queues
+    av_interleaved_write_frame(Container_Out, nullptr);
+    
     ErrCode = av_write_trailer(Container_Out);
     if (ErrCode)
     {
@@ -411,6 +410,9 @@ void Ffmpeg_t::prepareOutputPacketAndWriteIt(AVPacket &Packet_Out, std::vector<u
     Duration += Packet_Out.duration;
     
     memcpy(Packet_Out.data, SampleFifo.data(), Packet_Out.size);
+    int16_t *tmp = reinterpret_cast<int16_t *>(Packet_Out.data);
+    for (int i = 0; i < Packet_Out.duration; i++) printf("%d\n", tmp[i << 1]);
+    //printf("\n");
     SampleFifo.erase(SampleFifo.begin(), SampleFifo.begin() + Packet_Out.size);
     
     int32_t ErrCode = av_interleaved_write_frame(Container_Out, &Packet_Out);
@@ -750,6 +752,9 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint32_t SplitDuration
         SampleCount = 0;
     }
     
+    // Flush the interleaving queues
+    av_interleaved_write_frame(Container_Out, nullptr);
+    
     // Finish the stream data input
     ErrCode = av_write_trailer(Container_Out);
     if (ErrCode)
@@ -761,9 +766,11 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint32_t SplitDuration
     cleanUp_SplitTrack(FfmpegCleanUpLevelCode_SplitTrack::LEVEL_AVIO, false);
 }
 
-void Ffmpeg_t::exportProject(std::map<uint32_t, Record_1 *> &Recordings, std::string OutputFile, uint32_t Start, uint32_t End, uint8_t ExportComponents)
+void Ffmpeg_t::exportProject(std::map<uint32_t, Record_1 *> &Recordings, std::string OutputFile, std::string InputFile,
+                             uint32_t Start, uint32_t End, uint8_t ExportComponents)
 {
-    std::map<uint32_t, AVFormatContext *> InputTracks;
+    int32_t ErrCode;
+    std::map<uint32_t, InputDevice> TrackDevices;
     std::set<Interval_t, Comparator_Interval_t> IntervalSet_Current, IntervalSet_Previous;
     
     // ##### CREATING EXPORT TIME PLAN #####
@@ -775,7 +782,11 @@ void Ffmpeg_t::exportProject(std::map<uint32_t, Record_1 *> &Recordings, std::st
     {
         for (auto Interval: IntervalSet_Previous)
         {
-            if ( (Recording.second->StartTime == Interval.StartTime) && (Recording.second->EndTime == Interval.EndTime) ) continue;
+            if ( (Recording.second->StartTime == Interval.StartTime) && (Recording.second->EndTime == Interval.EndTime) )
+            {
+                IntervalSet_Current.emplace(Interval.StartTime, Interval.EndTime);
+                continue;
+            }
             
             if ( (Recording.second->StartTime <= Interval.StartTime) && (Recording.second->EndTime < Interval.EndTime)
             && (Recording.second->EndTime > Interval.StartTime) )
@@ -803,6 +814,8 @@ void Ffmpeg_t::exportProject(std::map<uint32_t, Record_1 *> &Recordings, std::st
         std::swap(IntervalSet_Previous, IntervalSet_Current);
     }
     
+    //for (auto x: IntervalSet_Previous) printf("%d %d\n", x.StartTime, x.EndTime);
+    
     // Assigning recordings (or silence) to each interval
     std::list<AudioTask_t> TaskList;
     
@@ -815,270 +828,361 @@ void Ffmpeg_t::exportProject(std::map<uint32_t, Record_1 *> &Recordings, std::st
         {
             if ( (Recording.second->StartTime <= Interval.StartTime) && (Recording.second->EndTime >= Interval.EndTime) )
             {
-                try
+                if (!TrackDevices.count(Recording.first) )
                 {
-                    if (!InputTracks.count(Recording.first) ) initInputFileAudio(Recording.second->Name, &InputTracks[Recording.first]);
+                    AVFormatContext *InputTrack = nullptr;
+                    initInputFileAudio(Recording.second->Name, &InputTrack);
+                    TrackDevices.emplace(Recording.first, InputTrack);
                 }
-                catch (FfmpegException_t &Err)
-                {
-                    // Need to close remaining open tracks
-                    for (auto OpenRecording: InputTracks)
-                    {
-                        if (OpenRecording.first != Recording.first) avformat_close_input(&OpenRecording.second);
-                    }
-                    throw Err;
-                }
-                Task.Recordings[Recording.first] = InputTracks[Recording.first];
+                Task.Recordings.emplace(Recording.first, &TrackDevices.at(Recording.first) );
             }
         }
-        
         TaskList.push_back(std::move(Task) );
     }
-    
-    // Prepare buffers for both channels per track
-    std::map<uint32_t, SampleBuffer_t> SampleBuffer_Input;
-    for (auto Track: InputTracks) SampleBuffer_Input[Track.first] = {{0}, {0}, 0};
     
     for (auto Recording: TaskList.front().Recordings)
     {
         if (Recordings[Recording.first]->StartTime < Start)
         {
-            int32_t ErrCode = trackStartCorrection(InputTracks[Recording.first],
-                static_cast<uint64_t>( (Start - Recordings[Recording.first]->StartTime) * 44.1), SampleBuffer_Input[Recording.first]);
+            int32_t ErrCode = Recording.second->skipSamples(static_cast<uint64_t>( (Start - Recordings[Recording.first]->StartTime) * 44.1) );
             
             if (ErrCode)
             {
-                cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVFORMAT_OUTPUT, InputTracks);
+                cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVFORMAT_OUTPUT);
                 throw FfmpegException_t(FfmpegErrorCode::CONTAINER_IN_READ_FRAME, ErrCode);
             }
         }
     }
     
-    initOutputFile(OutputFile, ExportComponents, InputTracks);
+    initOutputFile(OutputFile, InputFile, ExportComponents);
     
-    AVCodecContext *CodecContext_Out = Container_Out->streams[0]->codec;
-    if (avcodec_open2(CodecContext_Out, CodecContext_Out->codec, nullptr) )
+    /* ##### EXPORT PLAN & INPUT TRACKS READY ##### */
+    
+    if ( (ExportComponents & FfmpegExportComponents::AUDIO_VIDEO) == FfmpegExportComponents::VIDEO)
     {
-        cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVFORMAT_OUTPUT, InputTracks);
-        throw FfmpegException_t(FfmpegErrorCode::CODEC_IN_OPEN, 0);
+        int64_t Dummy = 0;
+        while (copyVideoPacket(Dummy) > 0);
+        avformat_close_input(&Container_In);
     }
     
-    // ##### EXPORT PLAN, INPUT TRACKS & OUTPUT CONTAINER READY #####
-    
-    av_init_packet(&Packet);
-    
-    AVFrame *Frame = av_frame_alloc();
-    if (!Frame)
+    if (ExportComponents & FfmpegExportComponents::AUDIO)
     {
-        cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVCODEC_CLOSE, InputTracks);
-        throw FfmpegException_t(FfmpegErrorCode::FRAME_ALLOC, 0);
-    }
-    
-    //Frame->nb_samples = PACKET_MP3_SAMPLE_COUNT;
-    Frame->format = AV_SAMPLE_FMT_S16P;
-    Frame->channel_layout = AV_CH_LAYOUT_STEREO;
-    
-    OutputBuffer_t SampleBuffer_Output = {{0.0}, {0.0}, 0};
-    
-    for (auto Task: TaskList)
-    {
-        OutputBuffer_t SampleBuffer_Working = {{0.0}, {0.0}, 0};
-        SampleBuffer_t SampleBuffer_Reordering = {{0}, {0}, 0};
+        uint8_t StreamIndex_Audio = (ExportComponents & FfmpegExportComponents::VIDEO ? 1 : 0);
+        int64_t VideoDuration = 1;
+        int64_t VideoPts = 0;
         
-        if (Task.Recordings.size() > 1) // Mixing is needed
+        AVCodecContext *CodecContext_Out = Container_Out->streams[StreamIndex_Audio]->codec;
+        if (avcodec_open2(CodecContext_Out, CodecContext_Out->codec, nullptr) )
         {
-            
+            cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVFORMAT_OUTPUT);
+            throw FfmpegException_t(FfmpegErrorCode::CODEC_IN_OPEN, 0);
         }
-        else if (Task.Recordings.size() ) // Single recording, no mixing
+        
+        OutputDevice ExportTarget(Container_Out, CodecContext_Out, StreamIndex_Audio);
+        
+        if (!ExportTarget.AllocFrameSuccess)
         {
-            for (auto Recording: Task.Recordings)
+            cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVCODEC_CLOSE);
+            throw FfmpegException_t(FfmpegErrorCode::FRAME_ALLOC, 0);
+        }
+        
+        if (!ExportTarget.AllocFrameBufferSuccess)
+        {
+            cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVCODEC_CLOSE);
+            throw FfmpegException_t(FfmpegErrorCode::FRAME_ALLOC_BUFFER, 0);
+        }
+        
+        /*for (auto Task: TaskList)
+        {
+            printf("%ld\n", Task.Recordings.size() );
+        }*/
+        
+        std::pair<FfmpegErrorCode::Type, int32_t> ErrPutSamples;
+        
+        for (auto Task: TaskList)
+        {
+            OutputBuffer_t SampleBuffer_Working = {{0.0}, {0.0}, 0};
+            uint64_t Task_SampleCountDuplicate = Task.SampleCount;
+            uint16_t Count;
+            
+            if (Task.Recordings.size() > 1) // Mixing is needed
             {
-                if ( (SampleBuffer_Output.SampleCount + Task.SampleCount) >= PACKET_MP3_SAMPLE_COUNT)
+                while (Task_SampleCountDuplicate > 0)
                 {
-                    // Osetreni i kdyz bude Task.SampleCount > PACKET_MP3_SAMPLE_COUNT hodnekrat
-                }
-                else // Store in SampleBuffer_Output
-                {
-                    if (SampleBuffer_Input[Recording.first].SampleCount >= Task.SampleCount)
-                        storeSamplesIntoOutputBuffer_variant(SampleBuffer_Input[Recording.first], SampleBuffer_Output, Task.SampleCount);
-                    else // Need to get another packet with more samples
+                    Count = (Task_SampleCountDuplicate > PACKET_MP3_SAMPLE_COUNT ? PACKET_MP3_SAMPLE_COUNT : Task_SampleCountDuplicate);
+                    
+                    SampleBuffer_Working.SampleCount = Count;
+                    
+                    for (auto Recording: Task.Recordings)
                     {
-                        do
+                        ErrCode = Recording.second->mixSamples(Count, SampleBuffer_Working, 1.0 / Task.Recordings.size() );
+                        if (ErrCode)
                         {
-                            int32_t ErrCode = getInputAudioSamples(Recording.second, SampleBuffer_Reordering);
+                            cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVCODEC_CLOSE);
+                            throw FfmpegException_t(FfmpegErrorCode::CONTAINER_IN_READ_FRAME, ErrCode);
+                        }
+                    }
+                    
+                    /*if (av_compare_ts(VideoPts, Container_Out->streams[0]->time_base, ExportTarget.Pts, Container_Out->streams[1]->time_base) < 0)
+                    {
+                        printf("VIDEO\n");
+                    }
+                    else printf("AUDIO\n");*/
+                    
+                    // Video stream present && video no empty && video timestamp < audio timestamp
+                    while ( (StreamIndex_Audio) && (VideoDuration) && (av_compare_ts(VideoPts, Container_Out->streams[0]->time_base,
+                        ExportTarget.Pts, Container_Out->streams[1]->time_base) < 0) )
+                    {
+                        //printf("VIDEO %d %d %ld\n", Container_Out->streams[0]->time_base.num, Container_Out->streams[0]->time_base.den, VideoPts);
+                        VideoDuration = copyVideoPacket(VideoPts);
+                    }
+                    
+                    //printf("AUDIO %d %d %ld\n", Container_Out->streams[1]->time_base.num, Container_Out->streams[1]->time_base.den, ExportTarget.Pts);
+                    
+                    ErrPutSamples = ExportTarget.putSamples(SampleBuffer_Working, Container_Out->streams[StreamIndex_Audio]->codec->time_base, Container_Out->streams[StreamIndex_Audio]->time_base);
+                    if (ErrPutSamples.first != FfmpegErrorCode::NO_ERROR_OCCURED)
+                    {
+                        cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVCODEC_CLOSE);
+                        throw FfmpegException_t(ErrPutSamples.first, ErrPutSamples.second);
+                    }
+                    
+                    Task_SampleCountDuplicate -= Count;
+                    SampleBuffer_Working = {{0.0}, {0.0}, 0};
+                }
+            }
+            else // No mixing
+            {
+                while (Task_SampleCountDuplicate > 0)
+                {
+                    Count = (Task_SampleCountDuplicate > PACKET_MP3_SAMPLE_COUNT ? PACKET_MP3_SAMPLE_COUNT : Task_SampleCountDuplicate);
+                    
+                    // Only one track
+                    if (Task.Recordings.size() )
+                    {
+                        for (auto Recording: Task.Recordings)
+                        {
+                            ErrCode = Recording.second->getSamples(Count, SampleBuffer_Working);
                             if (ErrCode)
                             {
-                                cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_FRAME, InputTracks, &Frame);
+                                cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVCODEC_CLOSE);
                                 throw FfmpegException_t(FfmpegErrorCode::CONTAINER_IN_READ_FRAME, ErrCode);
                             }
-                        
-                            if ( (SampleBuffer_Input[Recording.first].SampleCount + SampleBuffer_Reordering.SampleCount) <= Task.SampleCount)
-                            {
-                                memcpy(SampleBuffer_Input[Recording.first].ChannelLeft + SampleBuffer_Input[Recording.first].SampleCount,
-                                    SampleBuffer_Reordering.ChannelLeft, SampleBuffer_Reordering.SampleCount);
-                                    
-                                memcpy(SampleBuffer_Input[Recording.first].ChannelRight + SampleBuffer_Input[Recording.first].SampleCount,
-                                    SampleBuffer_Reordering.ChannelRight, SampleBuffer_Reordering.SampleCount);
-                                
-                                SampleBuffer_Input[Recording.first].SampleCount += SampleBuffer_Reordering.SampleCount;
-                                SampleBuffer_Reordering.SampleCount = 0;
-                            }
-                        } while (SampleBuffer_Input[Recording.first].SampleCount + SampleBuffer_Reordering.SampleCount < Task.SampleCount);
-                        
-                        memcpy(SampleBuffer_Input[Recording.first].ChannelLeft + SampleBuffer_Input[Recording.first].SampleCount,
-                            SampleBuffer_Reordering.ChannelLeft, Task.SampleCount - SampleBuffer_Input[Recording.first].SampleCount);
-                            
-                        memcpy(SampleBuffer_Input[Recording.first].ChannelRight + SampleBuffer_Input[Recording.first].SampleCount,
-                            SampleBuffer_Reordering.ChannelRight, Task.SampleCount - SampleBuffer_Input[Recording.first].SampleCount);
-                        
-                        uint16_t TmpSampleCount = Task.SampleCount - SampleBuffer_Input[Recording.first].SampleCount;
-                        SampleBuffer_Input[Recording.first].SampleCount = Task.SampleCount;
-                        
-                        // Zavolat funkci >= Task.SampleCount
-                        storeSamplesIntoOutputBuffer_variant(SampleBuffer_Input[Recording.first], SampleBuffer_Output, Task.SampleCount);
-                        
-                        assert( (SampleBuffer_Reordering.SampleCount - TmpSampleCount) >= 0); // Prozatim, ale melo by platit porad
-                        memcpy(SampleBuffer_Input[Recording.first].ChannelLeft, SampleBuffer_Reordering.ChannelLeft + TmpSampleCount,
-                            SampleBuffer_Reordering.SampleCount - TmpSampleCount);
-                            
-                        memcpy(SampleBuffer_Input[Recording.first].ChannelRight, SampleBuffer_Reordering.ChannelRight + TmpSampleCount,
-                            SampleBuffer_Reordering.SampleCount - TmpSampleCount);
-                        
-                        SampleBuffer_Input[Recording.first].SampleCount = SampleBuffer_Reordering.SampleCount - TmpSampleCount;
+                        }
                     }
+                    else SampleBuffer_Working.SampleCount = Count; // Silence
+                    
+                    // Video stream present && video timestamp < audio timestamp && video not empty
+                    while ( (StreamIndex_Audio) && (VideoDuration) && (av_compare_ts(VideoPts, Container_Out->streams[0]->time_base,
+                        ExportTarget.Pts, Container_Out->streams[1]->time_base) < 0) )
+                    {
+                        VideoDuration = copyVideoPacket(VideoPts);
+                    }
+                    
+                    ErrPutSamples = ExportTarget.putSamples(SampleBuffer_Working, Container_Out->streams[StreamIndex_Audio]->codec->time_base, Container_Out->streams[StreamIndex_Audio]->time_base);
+                    if (ErrPutSamples.first != FfmpegErrorCode::NO_ERROR_OCCURED)
+                    {
+                        cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVCODEC_CLOSE);
+                        throw FfmpegException_t(ErrPutSamples.first, ErrPutSamples.second);
+                    }
+                    //printf("kek\n");
+                    Task_SampleCountDuplicate -= Count;
                 }
             }
         }
-        else // Silence, no mixing
-        {
-            uint16_t Task_SampleCountDuplicate = Task.SampleCount;
-            if ( (SampleBuffer_Output.SampleCount + Task.SampleCount) >= PACKET_MP3_SAMPLE_COUNT)
+        
+        ErrPutSamples = {FfmpegErrorCode::NO_ERROR_OCCURED, 1};
+        if (!(ExportComponents & FfmpegExportComponents::VIDEO) ) VideoDuration = 0;
+        
+        do {
+            // Is video stream && video stream not empty && (no audio packet to insert || time to insert video packet)
+            if ( (StreamIndex_Audio) && (VideoDuration) && ( (!ErrPutSamples.second) || (av_compare_ts(VideoPts,
+                Container_Out->streams[0]->time_base, ExportTarget.Pts, Container_Out->streams[1]->time_base) < 0) ) )
             {
-                do
-                {
-                    memset(SampleBuffer_Output.ChannelLeft + SampleBuffer_Output.SampleCount, 0,
-                        sizeof(float) * (PACKET_MP3_SAMPLE_COUNT - SampleBuffer_Output.SampleCount) );
-                    
-                    memset(SampleBuffer_Output.ChannelRight + SampleBuffer_Output.SampleCount, 0,
-                        sizeof(float) * (PACKET_MP3_SAMPLE_COUNT - SampleBuffer_Output.SampleCount) );
-                    
-                    uint16_t TmpSampleCount = PACKET_MP3_SAMPLE_COUNT - SampleBuffer_Output.SampleCount;
-                    SampleBuffer_Output.SampleCount = PACKET_MP3_SAMPLE_COUNT;
-                    
-                    // Write this frame from SampleBuffer_Output
-                    
-                    SampleBuffer_Output.SampleCount = 0;
-                    Task_SampleCountDuplicate -= TmpSampleCount;
-                } while (Task_SampleCountDuplicate >= PACKET_MP3_SAMPLE_COUNT);
+                VideoDuration = copyVideoPacket(VideoPts);
             }
-            
-            // Store the rest (< PACKET_MP3_SAMPLE_COUNT) into SampleBuffer_Output (may be 0 samples, too)
-            memset(SampleBuffer_Output.ChannelLeft + SampleBuffer_Output.SampleCount, 0, sizeof(float) * Task_SampleCountDuplicate);
-            memset(SampleBuffer_Output.ChannelRight + SampleBuffer_Output.SampleCount, 0, sizeof(float) * Task_SampleCountDuplicate);
-            SampleBuffer_Output.SampleCount += Task_SampleCountDuplicate;
-        }
+            else if (ErrPutSamples.second)
+            {
+                ErrPutSamples = ExportTarget.flushDevice(Container_Out->streams[StreamIndex_Audio]->codec->time_base, Container_Out->streams[StreamIndex_Audio]->time_base);
+                if (ErrPutSamples.first != FfmpegErrorCode::NO_ERROR_OCCURED)
+                {
+                    if (ExportComponents & FfmpegExportComponents::VIDEO) avformat_close_input(&Container_In);
+                    cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVCODEC_CLOSE);
+                    throw FfmpegException_t(ErrPutSamples.first, ErrPutSamples.second);
+                }
+            }
+        } while ( (ErrPutSamples.second) || (VideoDuration) );
+        
+        if (ExportComponents & FfmpegExportComponents::VIDEO) avformat_close_input(&Container_In);
     }
-}
-
-int32_t Ffmpeg_t::trackStartCorrection(AVFormatContext *Track, uint64_t DiscardSampleCount, SampleBuffer_t &InputBuffer)
-{
-    SampleBuffer_t SampleBuffer_Reordering = {{0}, {0}, 0};
     
-    int32_t ErrCode = getInputAudioSamples(Track, SampleBuffer_Reordering);
-    if (ErrCode) return ErrCode;
+    /* ##### EXPORT FINISHED ##### */
     
-    while (DiscardSampleCount > PACKET_WAV_SAMPLE_COUNT)
+    ErrCode = av_write_trailer(Container_Out);
+    if (ErrCode)
     {
-        ErrCode = getInputAudioSamples(Track, SampleBuffer_Reordering);
-        if (ErrCode) return ErrCode;
-        if (DiscardSampleCount > PACKET_WAV_SAMPLE_COUNT) DiscardSampleCount -= PACKET_WAV_SAMPLE_COUNT;
+        cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVCODEC_CLOSE);
+        throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_WRITE_TRAILER, ErrCode);
     }
     
-    memcpy(InputBuffer.ChannelLeft, SampleBuffer_Reordering.ChannelLeft + DiscardSampleCount, PACKET_WAV_SAMPLE_COUNT - DiscardSampleCount);
-    memcpy(InputBuffer.ChannelRight, SampleBuffer_Reordering.ChannelRight + DiscardSampleCount, PACKET_WAV_SAMPLE_COUNT - DiscardSampleCount);
-    
-    return 0;
+    cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVCODEC_CLOSE);
 }
 
 // Pak tam pude jako parametr i vstupni video kvuli nastaveni parametru
-void Ffmpeg_t::initOutputFile(std::string &OutputFile, uint8_t ExportComponents, std::map<uint32_t, AVFormatContext *> &InputTracks)
+void Ffmpeg_t::initOutputFile(std::string &OutputFile, std::string &InputFile, uint8_t ExportComponents)
 {
-    int32_t ErrCode = avformat_alloc_output_context2(&Container_Out, nullptr, "mp3", nullptr);
-    if (ErrCode < 0)
+    int32_t ErrCode;
+    AVStream *Stream_Out;
+    
+    if (ExportComponents & FfmpegExportComponents::VIDEO)
     {
-        cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_INPUT_TRACKS, InputTracks);
-        throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_ALLOC, ErrCode);
+        Container_In = avformat_alloc_context();
+        if (!Container_In) throw FfmpegException_t(FfmpegErrorCode::CONTAINER_IN_ALLOC, 0);
+        
+        ErrCode = avformat_open_input(&Container_In, InputFile.c_str(), nullptr, nullptr);
+        if (ErrCode < 0)
+        {
+            avformat_free_context(Container_In);
+            throw FfmpegException_t(FfmpegErrorCode::CONTAINER_IN_OPEN, ErrCode);
+        }
+        
+        ErrCode = avformat_find_stream_info(Container_In, nullptr);
+        if (ErrCode < 0)
+        {
+            //cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVFORMAT_INPUT);
+            avformat_close_input(&Container_In);
+            throw FfmpegException_t(FfmpegErrorCode::CONTAINER_IN_STREAM_INFO, ErrCode);
+        }
+        
+        StreamIndex = 0;
+        if (Container_In->nb_streams > 1)
+        {
+            fprintf(stderr, "Warning: more than 1 stream in input file %s detected. Selecting first video stream.\n", InputFile.c_str() );
+            while ( (StreamIndex < Container_In->nb_streams) && (Container_In->streams[StreamIndex]->codec->codec_type != AVMEDIA_TYPE_VIDEO) ) StreamIndex++;
+        }
+        
+        /* ##### Input video ready ##### */
+        
+        ErrCode = avformat_alloc_output_context2(&Container_Out, nullptr, "matroska", nullptr);
+        if (ErrCode < 0)
+        {
+            avformat_close_input(&Container_In);
+            throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_ALLOC, ErrCode);
+        }
+        
+        Stream_Out = avformat_new_stream(Container_Out, avcodec_find_decoder(Container_In->streams[StreamIndex]->codec->codec_id) );
+        if (!Stream_Out)
+        {
+            avformat_close_input(&Container_In);
+            cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVFORMAT_OUTPUT);
+            throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_NEW_STREAM, 0);
+        }
+        
+        ErrCode = avcodec_copy_context(Stream_Out->codec, Container_In->streams[StreamIndex]->codec);
+        if (ErrCode < 0)
+        {
+            avformat_close_input(&Container_In);
+            cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVFORMAT_OUTPUT);
+            throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_COPY_CODEC_CONTEXT, ErrCode);
+        }
+        
+        Stream_Out->time_base = Container_In->streams[StreamIndex]->time_base;
+        Stream_Out->avg_frame_rate = Container_In->streams[StreamIndex]->avg_frame_rate;
+        
+        if (Container_Out->oformat->flags & AVFMT_GLOBALHEADER) Stream_Out->codec->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+        
+        av_init_packet(&Packet);
     }
     
-    AVStream *Stream_Out = avformat_new_stream(Container_Out, avcodec_find_decoder(AV_CODEC_ID_MP3) );
-    if (!Stream_Out)
+    if (ExportComponents & FfmpegExportComponents::AUDIO)
     {
-        cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVFORMAT_OUTPUT, InputTracks);
-        throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_NEW_STREAM, 0);
+        if ( !(ExportComponents & FfmpegExportComponents::VIDEO) )
+        {
+            ErrCode = avformat_alloc_output_context2(&Container_Out, nullptr, "mp3", nullptr);
+            if (ErrCode < 0) throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_ALLOC, ErrCode);
+        }
+        
+        Stream_Out = avformat_new_stream(Container_Out, avcodec_find_decoder(AV_CODEC_ID_MP3) );
+        if (!Stream_Out)
+        {
+            if (ExportComponents & FfmpegExportComponents::VIDEO) avformat_close_input(&Container_In);
+            cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVFORMAT_OUTPUT);
+            throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_NEW_STREAM, 0);
+        }
+        
+        avcodec_get_context_defaults3(Stream_Out->codec, avcodec_find_encoder(AV_CODEC_ID_MP3) );
+        
+        // ABR mode should be off
+        Stream_Out->id = 0;
+        Stream_Out->time_base = {1, 44100};
+        Stream_Out->codec->sample_fmt = AV_SAMPLE_FMT_S16P;
+        Stream_Out->codec->sample_rate = 44100;
+        //Stream_Out->codec->flags |= AV_CODEC_FLAG_QSCALE; // pokud nenastavim, bude 320k CBR
+        Stream_Out->codec->global_quality = 0;
+        Stream_Out->codec->compression_level = 2;
+        Stream_Out->codec->bit_rate = 320000;
+        Stream_Out->codec->channel_layout = AV_CH_LAYOUT_STEREO;
+        Stream_Out->codec->channels = 2;
+        //Stream_Out->codec->codec_tag = 0;
+        
+        if (Container_Out->oformat->flags & AVFMT_GLOBALHEADER) Stream_Out->codec->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
     }
-    
-    // ABR mode should be off
-    Stream_Out->id = 0;
-    Stream_Out->time_base = {1, 44100};
-    Stream_Out->codec->sample_fmt = AV_SAMPLE_FMT_S16P;
-    Stream_Out->codec->sample_rate = 44100;
-    Stream_Out->codec->flags |= AV_CODEC_FLAG_QSCALE; // pokud nenastavim, bude 320k CBR
-    Stream_Out->codec->global_quality = 0;
-    Stream_Out->codec->compression_level = 2;
-    Stream_Out->codec->bit_rate = 320000;
-    Stream_Out->codec->channel_layout = AV_CH_LAYOUT_STEREO;
-    Stream_Out->codec->channels = 2;
-    Stream_Out->codec->codec_tag = 0;
-    
-    if (Container_Out->oformat->flags & AVFMT_GLOBALHEADER) Stream_Out->codec->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
     
     ErrCode = avio_open(&Container_Out->pb, OutputFile.c_str(), AVIO_FLAG_WRITE);
     if (ErrCode < 0)
     {
-        cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVFORMAT_OUTPUT, InputTracks);
+        if (ExportComponents & FfmpegExportComponents::VIDEO) avformat_close_input(&Container_In);
+        cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVFORMAT_OUTPUT);
         throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_OPEN_FILE, ErrCode);
     }
     
     ErrCode = avformat_write_header(Container_Out, nullptr);
     if (ErrCode < 0)
     {
-        cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVIO, InputTracks);
+        if (ExportComponents & FfmpegExportComponents::VIDEO) avformat_close_input(&Container_In);
+        cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVIO);
         throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_WRITE_HEADER, ErrCode);
     }
 }
 
-int32_t Ffmpeg_t::getInputAudioSamples(AVFormatContext *InputTrack, SampleBuffer_t &SampleBuffer_Reordering)
+int64_t Ffmpeg_t::copyVideoPacket(int64_t &Pts)
 {
-    int32_t ErrCode = av_read_frame(InputTrack, &Packet);
-    if (ErrCode < 0) return ErrCode;
+    bool GotRightPacket = false;
+    int64_t PacketDuration;
     
-    SampleBuffer_Reordering.SampleCount = Packet.duration;
-    uint16_t *TmpPtr = reinterpret_cast<uint16_t *>(Packet.data);
-    
-    // parallel
-    for (uint16_t i = 0; i < Packet.duration; i++)
+    do
     {
-        SampleBuffer_Reordering.ChannelLeft[i] = TmpPtr[i << 1];
-        SampleBuffer_Reordering.ChannelRight[i] = TmpPtr[(i << 1) + 1];
-    }
+        int32_t ErrCode = av_read_frame(Container_In, &Packet);
+        if (ErrCode < 0)
+        {
+            if (ErrCode == AVERROR_EOF) return 0;
+            else
+            {
+                avformat_close_input(&Container_In);
+                cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVIO);
+                throw FfmpegException_t(FfmpegErrorCode::CONTAINER_IN_READ_FRAME, ErrCode);
+            }
+        }
+        
+        if ( (Packet.stream_index == StreamIndex) /*&& (Packet.duration)*/ )
+        {
+            GotRightPacket = true;
+            Packet.stream_index = 0;
+            av_packet_rescale_ts(&Packet, Container_In->streams[StreamIndex]->time_base, Container_Out->streams[0]->time_base);
+            //Packet.dts = Packet.pts = Pts;
+            PacketDuration = Packet.duration;
+            Pts += Packet.duration;
+            
+            ErrCode = av_interleaved_write_frame(Container_Out, &Packet);
+            if (ErrCode < 0)
+            {
+                avformat_close_input(&Container_In);
+                cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::LEVEL_AVIO);
+                throw FfmpegException_t(FfmpegErrorCode::CONTAINER_OUT_WRITE_FRAME, ErrCode);
+            }
+        }
+        
+        av_packet_unref(&Packet);
+    } while (!GotRightPacket);
     
-    av_packet_unref(&Packet);
-    
-    return 0;
-}
-
-void Ffmpeg_t::storeSamplesIntoOutputBuffer_variant(SampleBuffer_t &InputBuffer, OutputBuffer_t &SampleBuffer_Output, uint64_t Task_SampleCount)
-{
-    // parallel
-    for (uint16_t i = 0; i < Task_SampleCount; i++)
-    {
-        SampleBuffer_Output.ChannelLeft[SampleBuffer_Output.SampleCount + i] = static_cast<float>(InputBuffer.ChannelLeft[i]);
-        SampleBuffer_Output.ChannelRight[SampleBuffer_Output.SampleCount + i] = static_cast<float>(InputBuffer.ChannelRight[i]);
-    }
-    
-    memmove(InputBuffer.ChannelLeft, InputBuffer.ChannelLeft + Task_SampleCount, InputBuffer.SampleCount - Task_SampleCount);
-    memmove(InputBuffer.ChannelRight, InputBuffer.ChannelRight + Task_SampleCount, InputBuffer.SampleCount - Task_SampleCount);
-    
-    InputBuffer.SampleCount -= Task_SampleCount;
-    SampleBuffer_Output.SampleCount += Task_SampleCount;
+    return PacketDuration;
 }

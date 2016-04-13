@@ -5,7 +5,7 @@
 
 namespace FfmpegErrorCode {
     enum Type:uint8_t {
-        NO_ERROR,
+        NO_ERROR_OCCURED,
         SPLIT_DURATION_1_EMPTY,
         CONTAINER_IN_ALLOC,
         CONTAINER_IN_OPEN,
@@ -21,13 +21,15 @@ namespace FfmpegErrorCode {
         CONTAINER_OUT_WRITE_TRAILER,
         PACKET_ALLOC,
         FRAME_ALLOC,
+        FRAME_ALLOC_BUFFER,
         CODEC_IN_NOT_FOUND,
         CODEC_IN_OPEN,
         RESAMPLE_ALLOC,
         RESAMPLE_INIT,
         RESAMPLE_CONVERT,
         RESAMPLE_BUFFER_ALLOC,
-        DECODE
+        DECODE,
+        ENCODE
     };
 }
 
