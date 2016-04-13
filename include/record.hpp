@@ -14,6 +14,8 @@
 #include <qcustomplot-source/qcustomplot.h>
 
 #include <common.hpp>
+
+class Record;
 #include <ffmpeg/ffmpeg.hpp>
 
 

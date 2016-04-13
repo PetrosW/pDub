@@ -80,7 +80,7 @@ void Ffmpeg_t::cleanUp_ExportProject(FfmpegCleanUpLevelCode_ExportProject::Type 
     }
 }
 
-std::pair<std::vector<double>, std::vector<double> > Ffmpeg_t::getSamplesForWaveformPlotting(std::string FileName)
+std::pair<std::vector<double>, std::vector<double> > Ffmpeg_t::getSamplesForWaveformPlotting(QString FileName)
 {
     initInputFileAudio(FileName);
     
@@ -167,7 +167,7 @@ void Ffmpeg_t::compareMinMaxAndSwap(std::function<bool(int16_t, int16_t)> Sample
 }
 
 // TODO: SampleFifo to uint16_t, everywhere?
-void Ffmpeg_t::convertInputAudio(std::string FileName, std::string Id)
+void Ffmpeg_t::convertInputAudio(QString FileName, std::string Id)
 {
     bool DoResample = false;
     
@@ -475,7 +475,7 @@ int32_t Ffmpeg_t::resample_JustStore(SwrContext *, AVFrame *Frame, std::vector<u
     return 0;
 }
 
-uint64_t Ffmpeg_t::getAudioDuration(std::string FileName)
+uint64_t Ffmpeg_t::getAudioDuration(QString FileName)
 {
     initInputFileAudio(FileName);
     
@@ -487,7 +487,7 @@ uint64_t Ffmpeg_t::getAudioDuration(std::string FileName)
     return Duration_miliseconds;
 }
 
-void Ffmpeg_t::initInputFileAudio(QString &FileName, AVFormatContext **Container)
+void Ffmpeg_t::initInputFileAudio(QString FileName, AVFormatContext **Container)
 {
     AVFormatContext *&Container_Now = (Container ? *Container : Container_In);
     
@@ -538,7 +538,8 @@ void Ffmpeg_t::splitTrack(std::string FileName, uint32_t SplitDuration)
     // Transforming miliseconds to sample count (44.1 samples = 1 ms when 44100 KHz sampling freq)
     SplitDuration = static_cast<uint64_t>(SplitDuration * 44.1);
     
-    initInputFileAudio(FileName);
+    QString lol = FileName.c_str();
+    initInputFileAudio(lol);
     
     av_dump_format(Container_In, 0, FileName.c_str(), 0);
     
@@ -775,9 +776,9 @@ void Ffmpeg_t::exportProject(QMap<uint32_t, QMap<uint32_t, Record *> > &Recordin
     
     QMap<uint32_t, Record *> Recordings;
     
-    for (auto Time: RecordingsMap)
+    for (auto Time: RecordingsMap.toStdMap())
     {
-        for (auto ActualRec: Time.second)
+        for (auto ActualRec: Time.second.toStdMap())
         {
             Recordings.insert(ActualRec.first, ActualRec.second);
         }
@@ -788,33 +789,33 @@ void Ffmpeg_t::exportProject(QMap<uint32_t, QMap<uint32_t, Record *> > &Recordin
     // Creating intervals
     IntervalSet_Previous.emplace(Start, End);
     
-    for (auto Recording: Recordings)
+    for (auto Recording: Recordings.toStdMap())
     {
         for (auto Interval: IntervalSet_Previous)
         {
-            if ( (Recording.second->StartTime == Interval.StartTime) && (Recording.second->EndTime == Interval.EndTime) )
+            if ( (Recording.second->StartTime() == Interval.StartTime) && (Recording.second->EndTime() == Interval.EndTime) )
             {
                 IntervalSet_Current.emplace(Interval.StartTime, Interval.EndTime);
                 continue;
             }
             
-            if ( (Recording.second->StartTime <= Interval.StartTime) && (Recording.second->EndTime < Interval.EndTime)
-            && (Recording.second->EndTime > Interval.StartTime) )
+            if ( (Recording.second->StartTime() <= Interval.StartTime) && (Recording.second->EndTime() < Interval.EndTime)
+            && (Recording.second->EndTime() > Interval.StartTime) )
             {
-                IntervalSet_Current.emplace(Interval.StartTime, Recording.second->EndTime);
-                IntervalSet_Current.emplace(Recording.second->EndTime, Interval.EndTime);
+                IntervalSet_Current.emplace(Interval.StartTime, Recording.second->EndTime());
+                IntervalSet_Current.emplace(Recording.second->EndTime(), Interval.EndTime);
             }
-            else if ( (Recording.second->StartTime > Interval.StartTime) && (Recording.second->EndTime >= Interval.EndTime)
-            && (Recording.second->StartTime < Interval.EndTime) )
+            else if ( (Recording.second->StartTime() > Interval.StartTime) && (Recording.second->EndTime() >= Interval.EndTime)
+            && (Recording.second->StartTime() < Interval.EndTime) )
             {
-                IntervalSet_Current.emplace(Interval.StartTime, Recording.second->StartTime);
-                IntervalSet_Current.emplace(Recording.second->StartTime, Interval.EndTime);
+                IntervalSet_Current.emplace(Interval.StartTime, Recording.second->StartTime());
+                IntervalSet_Current.emplace(Recording.second->StartTime(), Interval.EndTime);
             }
-            else if ( (Recording.second->StartTime > Interval.StartTime) && (Recording.second->EndTime < Interval.EndTime) )
+            else if ( (Recording.second->StartTime() > Interval.StartTime) && (Recording.second->EndTime() < Interval.EndTime) )
             {
-                IntervalSet_Current.emplace(Interval.StartTime, Recording.second->StartTime);
-                IntervalSet_Current.emplace(Recording.second->StartTime, Recording.second->EndTime);
-                IntervalSet_Current.emplace(Recording.second->EndTime, Interval.EndTime);
+                IntervalSet_Current.emplace(Interval.StartTime, Recording.second->StartTime());
+                IntervalSet_Current.emplace(Recording.second->StartTime(), Recording.second->EndTime());
+                IntervalSet_Current.emplace(Recording.second->EndTime(), Interval.EndTime);
             }
             else IntervalSet_Current.emplace(Interval.StartTime, Interval.EndTime);
         }
@@ -834,14 +835,14 @@ void Ffmpeg_t::exportProject(QMap<uint32_t, QMap<uint32_t, Record *> > &Recordin
         AudioTask_t Task;
         Task.SampleCount = static_cast<uint64_t>( (Interval.EndTime - Interval.StartTime) * 44.1);
         
-        for (auto Recording: Recordings)
+        for (auto Recording: Recordings.toStdMap())
         {
-            if ( (Recording.second->StartTime <= Interval.StartTime) && (Recording.second->EndTime >= Interval.EndTime) )
+            if ( (Recording.second->StartTime() <= Interval.StartTime) && (Recording.second->EndTime() >= Interval.EndTime) )
             {
                 if (!TrackDevices.count(Recording.first) )
                 {
                     AVFormatContext *InputTrack = nullptr;
-                    initInputFileAudio(Path + Recording.second->Name, &InputTrack);
+                    initInputFileAudio(Path + Recording.second->Name(), &InputTrack);
                     TrackDevices.emplace(Recording.first, InputTrack);
                 }
                 Task.Recordings.emplace(Recording.first, &TrackDevices.at(Recording.first) );
@@ -852,9 +853,9 @@ void Ffmpeg_t::exportProject(QMap<uint32_t, QMap<uint32_t, Record *> > &Recordin
     
     for (auto Recording: TaskList.front().Recordings)
     {
-        if (Recordings[Recording.first]->StartTime < Start)
+        if (Recordings[Recording.first]->StartTime() < Start)
         {
-            int32_t ErrCode = Recording.second->skipSamples(static_cast<uint64_t>( (Start - Recordings[Recording.first]->StartTime) * 44.1) );
+            int32_t ErrCode = Recording.second->skipSamples(static_cast<uint64_t>( (Start - Recordings[Recording.first]->StartTime()) * 44.1) );
             
             if (ErrCode)
             {
@@ -1004,7 +1005,7 @@ void Ffmpeg_t::exportProject(QMap<uint32_t, QMap<uint32_t, Record *> > &Recordin
         if (!(ExportComponents & FfmpegExportComponents::VIDEO) ) VideoDuration = 0;
         
         do {
-            // Is video stream && video stream not empty && (no audio packet to insert || time to insert video packet)
+            // Is video stream && video stream not empty && (no audio packet to insert || time to insert video packet)
             if ( (StreamIndex_Audio) && (VideoDuration) && ( (!ErrPutSamples.second) || (av_compare_ts(VideoPts,
                 Container_Out->streams[0]->time_base, ExportTarget.Pts, Container_Out->streams[1]->time_base) < 0) ) )
             {
@@ -1137,7 +1138,7 @@ void Ffmpeg_t::initOutputFile(QString &OutputFile, QString &InputFile, uint8_t E
         if (Container_Out->oformat->flags & AVFMT_GLOBALHEADER) Stream_Out->codec->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
     }
     
-    ErrCode = avio_open(&Container_Out->pb, OutputFile.c_str(), AVIO_FLAG_WRITE);
+    ErrCode = avio_open(&Container_Out->pb, OutputFile.toStdString().c_str(), AVIO_FLAG_WRITE);
     if (ErrCode < 0)
     {
         if (ExportComponents & FfmpegExportComponents::VIDEO) avformat_close_input(&Container_In);

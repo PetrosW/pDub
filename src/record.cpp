@@ -87,7 +87,7 @@ void Record::mouseReleaseEvent(QMouseEvent *event) {
 
 void Record::createWaveFormPic(Ffmpeg_t *ffmpeg, QString recortPath) {
 
-    std::pair<std::vector<double>, std::vector<double> > dataWaveForm = ffmpeg->getSamplesForWaveformPlotting((recortPath + "/" + m_Name).toStdString());
+    std::pair<std::vector<double>, std::vector<double> > dataWaveForm = ffmpeg->getSamplesForWaveformPlotting(recortPath + "/" + m_Name);
     QCustomPlot Plotter;
     Plotter.setBackground(QBrush(Qt::transparent) );
     Plotter.xAxis->setVisible(false);

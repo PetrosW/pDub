@@ -19,6 +19,8 @@
 #include "exception.hpp"
 #include <ffmpeg/devices.hpp>
 #include <ffmpeg/packet_sizes.hpp>
+
+class Ffmpeg_t;
 #include <record.hpp>
 
 class Record_1
@@ -103,9 +105,9 @@ class Ffmpeg_t
     public:
         Ffmpeg_t();
         void splitTrack(std::string FileName, uint32_t SplitDuration);
-        uint64_t getAudioDuration(std::string FileName);
-        std::pair<std::vector<double>, std::vector<double> > getSamplesForWaveformPlotting(std::string FileName);
-        void convertInputAudio(std::string FileName, std::string Id);
+        uint64_t getAudioDuration(QString FileName);
+        std::pair<std::vector<double>, std::vector<double> > getSamplesForWaveformPlotting(QString FileName);
+        void convertInputAudio(QString FileName, std::string Id);
         void exportProject(QMap<uint32_t, QMap<uint32_t, Record *> > &RecordingsMap, QString Path, QString &OutputFile, QString &InputFile,
                            uint32_t Start, uint32_t End, uint8_t ExportComponents);
     
@@ -122,7 +124,7 @@ class Ffmpeg_t
         uint8_t *ResamplingBuffer[1];
         int32_t ResamplingBufferSize;
         
-        void initInputFileAudio(QString &FileName, AVFormatContext **Container = nullptr);
+        void initInputFileAudio(QString FileName, AVFormatContext **Container = nullptr);
         void writePacketsToFile(std::string &SplitFile, uint32_t SplitDuration);
         void cleanUp_SplitTrack(FfmpegCleanUpLevelCode_SplitTrack::Type Level, bool CloseInput = 1);
         void cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::Type Level, AVFrame **Frame = nullptr, SwrContext **ResampleContext = nullptr);
