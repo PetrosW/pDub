@@ -831,7 +831,7 @@ void Ffmpeg_t::exportProject(QMap<uint32_t, Record *> &Recordings, QString &Path
                 if (!TrackDevices.count(Recording.first) )
                 {
                     AVFormatContext *InputTrack = nullptr;
-                    initInputFileAudio(Recording.second->Name, &InputTrack);
+                    initInputFileAudio(Path + Recording.second->Name, &InputTrack);
                     TrackDevices.emplace(Recording.first, InputTrack);
                 }
                 Task.Recordings.emplace(Recording.first, &TrackDevices.at(Recording.first) );
