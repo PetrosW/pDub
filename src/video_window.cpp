@@ -143,12 +143,12 @@ void Window_Video_t::playInit() {
     //Player->setBufferMode(QtAV::BufferTime);
     //120000000 = 120 MB
     //Player->setBufferValue(60000);
-    Player->setSeekType(QtAV::AnyFrameSeek);
+    Player->setSeekType(QtAV::AccurateSeek);
     while (!Player->isPlaying() || !Player->isPaused()) {
         if (Player->isPlaying()) {
             Player->setPosition(qint64(0));
             Player->pause(true);
-            Player->setSeekType(QtAV::AnyFrameSeek);
+            Player->setSeekType(QtAV::AccurateSeek);
         }
     }
 }

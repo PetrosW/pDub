@@ -174,6 +174,7 @@ void Window_Editor_t::relocateRecordInMap(uint32_t RecordID, uint32_t OldStartTi
 }
 
 void Window_Editor_t::setSliderLinePosition(uint32_t pos) {
+    qDebug() << "lol";
     sliderLinePositionChanged(pos);
     SliderLine->move(pos, 0);
     updateRecordPlayer();
@@ -181,10 +182,12 @@ void Window_Editor_t::setSliderLinePosition(uint32_t pos) {
 
 
 void Window_Editor_t::setScrollAreaEditorTimeSliderValue(int value) {
+    qDebug() << "lol1";
     ScrollBarEditorTimeSliderHorizontal->setValue(value);
 }
 
 void Window_Editor_t::setSliderLinePositionFromVideo(qint64 pos) {
+    qDebug() << "lol2";
     SliderLine->move(pos/100, 0);
 }
 
@@ -206,8 +209,8 @@ void Window_Editor_t::updateRecordPlayer() {
     else {
         return;
     }
-    qDebug() << "currentPos " << currentVideoPosition;
-    qDebug() << "nextTime " << NextPlayingStartTime;
+//    qDebug() << "currentPos " << currentVideoPosition;
+//    qDebug() << "nextTime " << NextPlayingStartTime;
 
     foreach (auto map, MapTimeRecord) {
         foreach(Record *item, map) {
@@ -259,7 +262,6 @@ void Window_Editor_t::updateRecordPlayerTimer() {
         else {
             QtAV::AVPlayer *newRecordPlayer = new QtAV::AVPlayer(this);
             VectorMediaPlayer.append(newRecordPlayer);
-            qDebug() << MapTimeRecord[NextPlayingStartTime].first()->Name();
             newRecordPlayer->setFile(Window_Control_Ptr->RecordPath() + "//" + MapTimeRecord[NextPlayingStartTime].first()->Name());
             newRecordPlayer->audio()->setVolume(0.8);
             newRecordPlayer->play();
@@ -336,8 +338,8 @@ void Window_Editor_t::videoPausePlayFromVideo(bool isPause) {
         if (MapTimeRecord.contains(NextPlayingStartTime)) {
             uint32_t currentVideoPosition = Window_Video_Ptr->getPlayerPosition();
             uint32_t nextTime = NextPlayingStartTime - currentVideoPosition;
-            qDebug() << "currentPos " << currentVideoPosition;
-            qDebug() << "nextTime " << NextPlayingStartTime;
+//            qDebug() << "currentPos " << currentVideoPosition;
+//            qDebug() << "nextTime " << NextPlayingStartTime;
             TimerNextPlayRecord->setInterval(nextTime);
             TimerNextPlayRecord->start();
         }
