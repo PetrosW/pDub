@@ -27,6 +27,8 @@ class Window_Video_t : public QWidget
         void createUi();
 
     private:
+        QString m_FileName;
+
         Window_Control_t *Window_Control_Ptr;
         Window_Editor_t *Window_Editor_Ptr;
 
@@ -53,6 +55,7 @@ class Window_Video_t : public QWidget
         void play();
         void pause();
         void updateVideoPositionEditorSlider(uint32_t pos);
+        void setMute(bool set);
 
 
     private slots:
@@ -64,6 +67,7 @@ class Window_Video_t : public QWidget
         void updateVideoTimePositionSliderMove(int newPlayerTimePosition);
         void updateVideoTimePositionSliderPressed();
         void sliderPressRelease();
+        void videoStopEnd();
 };
 
 #endif

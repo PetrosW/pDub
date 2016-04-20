@@ -62,6 +62,10 @@ class Window_Control_t : public QMainWindow
     signals:
         void ProjectFolderChanged();
         void RecordPathChanged();
+        void VideoStop();
+
+    public slots:
+        void videoStopEnd();
 
     private slots:
         void newProject(QString projectName, QString videoFilePath, QString projectFolder);

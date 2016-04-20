@@ -9,6 +9,7 @@
 #include <QMediaPlayer>
 #include <QVector>
 #include <QTimer>
+//#include <QCheckBox>
 
 #include <common.hpp>
 
@@ -47,6 +48,8 @@ class Window_Editor_t : public QWidget
         uint32_t NextPlayingStartTime;
         uint32_t NextPlayintId;
 
+        uint32_t SelectedRecordId;
+
         QGridLayout *Layout;
         QGridLayout *ControlLayout;
 
@@ -73,6 +76,8 @@ class Window_Editor_t : public QWidget
 
         QPushButton *ButtonAddRow;
 
+        QCheckBox *CheckBoxMuteRecords;
+
         QLabel *LabelVideoTime;
         QLabel *LabelRecordStartTime;
         QLabel *LabelRecordEndTime;
@@ -96,7 +101,9 @@ class Window_Editor_t : public QWidget
     public slots:
         void setSliderLinePosition(uint32_t pos);
         void videoPausePlayFromVideo(bool isPause);
-        void addNewRecordObject(uint32_t RecordID, uint32_t StartTime, uint32_t EndTime, QString Name);
+        void addNewRecordObject(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name);
+        void recordSelected(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name);
+        void recordMoveSelected(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name);
 };
 
 #endif

@@ -53,13 +53,22 @@ void Microphone::createUi() {
 
 }
 
+//public slots
+
+void Microphone::videoStopEnd() {
+    if (AudioRecorder->state() == QAudioRecorder::RecordingState) {
+        stopRecord();
+    }
+}
+
 //private slots
 
 void Microphone::startRecord() {
-    qDebug() << Window_Video_Ptr->getPlayerPosition();
+//    qDebug() << Window_Video_Ptr->getPlayerPosition();
     if (Window_Video_Ptr->isPaused() == true) {
         Window_Video_Ptr->play();
     }
+    Window_Video_Ptr->setMute(true);
     AudioRecorder->setOutputLocation(QUrl::fromLocalFile(Window_Control_Ptr->RecordPath() + "//" + "record" + QString::number(Window_Control_Ptr->NextRecordId) + ".wav"));
     AudioRecorder->record();
 
@@ -76,16 +85,16 @@ void Microphone::startRecord() {
 }
 
 void Microphone::stopRecord() {
-    qDebug() << Window_Video_Ptr->getPlayerPosition();
+//    qDebug() << Window_Video_Ptr->getPlayerPosition();
+    Window_Video_Ptr->setMute(false);
     AudioRecorder->stop();
-    EndTime = Window_Video_Ptr->getPlayerPosition();
     LabelEndTime->setText(QString("End time: %1").arg(miliSecToTime(EndTime)));
     TimerRecord->stop();
     LabelDurationTime->setText(QString("Duration time: %1").arg(miliSecToTime(EndTime - StartTime)));
     disconnect(ButtonRecord, SIGNAL(clicked()), this, SLOT(stopRecord()));
     connect(ButtonRecord, SIGNAL(clicked()), this, SLOT(startRecord()));
     ButtonRecord->setText("Record");
-    recordingEnd(Window_Control_Ptr->NextRecordId, StartTime, EndTime, "record" + QString::number(Window_Control_Ptr->NextRecordId) + ".wav");
+    recordingEnd(Window_Control_Ptr->NextRecordId, StartTime, 0, "record" + QString::number(Window_Control_Ptr->NextRecordId) + ".wav");
 
 }
 

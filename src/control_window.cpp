@@ -33,6 +33,7 @@ void Window_Control_t::setDeafaultMicrophone(){
 void Window_Control_t::newMicrophone() {
     Microphone *mic1 = new Microphone(this, Window_Video_Ptr, this);
     connect(mic1, SIGNAL(recordingEnd(uint32_t, uint32_t, uint32_t, QString)), Window_Editor_Ptr, SLOT(addNewRecordObject(uint32_t, uint32_t, uint32_t, QString)));
+    connect(this, &Window_Control_t::VideoStop, mic1, &Microphone::videoStopEnd);
     Layout->addWidget(mic1, 0, 1);
     Layout->setColumnMinimumWidth(1, 100);
 }
@@ -92,6 +93,12 @@ void Window_Control_t::createToolBar() {
     /*QToolBar *ToolBar = new QToolBar(this);
     this->addToolBar(ToolBar);
     ToolBar->addAction("New project");*/
+}
+
+//public slots
+
+void Window_Control_t::videoStopEnd() {
+    VideoStop();
 }
 
 //private slots

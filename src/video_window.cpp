@@ -39,6 +39,7 @@ void Window_Video_t::setWindowEditorPtr(Window_Editor_t *Window_Editor)
 }
 
 void Window_Video_t::firstPlay(QString FileName) {
+    m_FileName = FileName;
     ButtonPlay->setEnabled(true);
     Player->play(FileName);
 }
@@ -55,6 +56,8 @@ void Window_Video_t::createUi() {
     connect(SliderVideoTime, &QSlider::sliderPressed, this, &Window_Video_t::sliderPressRelease);
     connect(Player, &QtAV::AVPlayer::positionChanged, this, &Window_Video_t::updateSilderTimeValue);
     connect(Player, &QtAV::AVPlayer::positionChanged, this, &Window_Video_t::positionVideoChanged);
+    connect(Player, &QtAV::AVPlayer::stopped, Window_Control_Ptr, &Window_Control_t::videoStopEnd);
+    connect(Player, &QtAV::AVPlayer::stopped, this, &Window_Video_t::videoStopEnd);
 
 
     Layout->addWidget(SliderVideoTime, 1, 0);
@@ -136,6 +139,10 @@ void Window_Video_t::updateVideoPositionEditorSlider(uint32_t pos) {
     connect(Player, &QtAV::AVPlayer::positionChanged, this, &Window_Video_t::positionVideoChanged);
 }
 
+void Window_Video_t::setMute(bool mute){
+    Player->setMute(mute);
+}
+
 // private slots
 void Window_Video_t::playInit() {
     SliderVideoTime->setMaximum(Player->duration());
@@ -196,3 +203,15 @@ void Window_Video_t::sliderPressRelease() {
         Window_Editor_Ptr->videoPausePlayFromVideo(isPlaying);
     }
 }
+
+// moc nefunguje
+void Window_Video_t::videoStopEnd(){
+    ButtonPlay->setText("Play");
+    disconnect(ButtonPlay, SIGNAL(clicked()), this, SLOT(pause()));
+    connect(ButtonPlay, SIGNAL(clicked()), this, SLOT(play()));
+    sliderEditorSeek = false;
+    isPlayingSliderPress = false;
+    isPlaying = false;
+    Player->play(m_FileName);
+}
+

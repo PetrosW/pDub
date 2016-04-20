@@ -42,25 +42,29 @@ void Window_Editor_t::setWindowVideoPtr(Window_Video_t *Window_Video)
 }
 
 void Window_Editor_t::createUi() {
-    LabelVideoTime = new QLabel("VideoTime", this);
-    ControlLayout->addWidget(LabelVideoTime, 0, 0, 1, 3);
+    CheckBoxMuteRecords = new QCheckBox("Mute Records", this);
+    ControlLayout->addWidget(CheckBoxMuteRecords, 0, 0, 1, 3);
 
-    LabelRecordStartTime = new QLabel("StarTime", this);
-    ControlLayout->addWidget(LabelRecordStartTime, 1, 1, 1, 1);
-    LabelRecordEndTime = new QLabel("EndTime", this);
-    ControlLayout->addWidget(LabelRecordEndTime, 2, 1, 1, 1);
+    LabelVideoTime = new QLabel("VideoTime: 00:00:00", this);
+    ControlLayout->addWidget(LabelVideoTime, 1, 0, 1, 3);
+
+    LabelRecordStartTime = new QLabel("StarTime: 00:00:00", this);
+    ControlLayout->addWidget(LabelRecordStartTime, 2, 0, 1, 3);
 
     ButtonBackward = new QPushButton("<<", this);
-    ControlLayout->addWidget(ButtonBackward, 1, 0, 2, 1);
+    ControlLayout->addWidget(ButtonBackward, 2, 0, 2, 1);
     ButtonForward = new QPushButton(">>", this);
-    ControlLayout->addWidget(ButtonForward, 1, 2, 2 ,1);
+    ControlLayout->addWidget(ButtonForward, 2, 2, 2, 1);
+
+    LabelRecordEndTime = new QLabel("EndTime: 00:00:00", this);
+    ControlLayout->addWidget(LabelRecordEndTime, 3, 0, 1, 3);
 
     ButtonSplit = new QPushButton("Split", this);
-    ControlLayout->addWidget(ButtonSplit, 3, 0, 1, 3);
+    ControlLayout->addWidget(ButtonSplit, 4, 0, 1, 3);
     ButtonMerge = new QPushButton("Merge", this);
-    ControlLayout->addWidget(ButtonMerge, 4, 0, 1, 3);
+    ControlLayout->addWidget(ButtonMerge, 5, 0, 1, 3);
     ButtonDelete = new QPushButton("Delete", this);
-    ControlLayout->addWidget(ButtonDelete, 5, 0, 1, 3);
+    ControlLayout->addWidget(ButtonDelete, 6, 0, 1, 3);
 
 
     ScrollAreaEditorTimeSlider = new QScrollArea(this);
@@ -132,6 +136,7 @@ void Window_Editor_t::createUi() {
     connect(WidgetRecordWorkPlace, &RecordWorkplace::sliderPositionChanged, this, &Window_Editor_t::setSliderLinePosition);
     connect(WidgetRecordWorkPlace, &RecordWorkplace::sliderPositionChanged, SliderEditorControl, &SliderEditor::setSliderLinePosition);
     connect(Window_Video_Ptr, &Window_Video_t::signalVideoTimePositionSliderMove, this, &Window_Editor_t::updateRecordPlayer);
+    connect(CheckBoxMuteRecords, &QCheckBox::stateChanged, this, &Window_Editor_t::updateRecordPlayer);
 
     SliderEditorControl->show();
     WidgetWorkPlace->show();
@@ -166,15 +171,14 @@ void Window_Editor_t::relocateRecordInMap(uint32_t RecordID, uint32_t OldStartTi
     if (MapTimeRecord[OldStartTime].empty()) {
         MapTimeRecord.remove(OldStartTime);
     }
-    foreach (auto map, MapTimeRecord) {
-        foreach(Record *item, map) {
-            qDebug() << item->Id() << " : " << item->StartTime();
-        }
-    }
+//    foreach (auto map, MapTimeRecord) {
+//        foreach(Record *item, map) {
+//            qDebug() << item->Id() << " : " << item->StartTime();
+//        }
+//    }
 }
 
 void Window_Editor_t::setSliderLinePosition(uint32_t pos) {
-    qDebug() << "lol";
     sliderLinePositionChanged(pos);
     SliderLine->move(pos, 0);
     updateRecordPlayer();
@@ -182,12 +186,10 @@ void Window_Editor_t::setSliderLinePosition(uint32_t pos) {
 
 
 void Window_Editor_t::setScrollAreaEditorTimeSliderValue(int value) {
-    qDebug() << "lol1";
     ScrollBarEditorTimeSliderHorizontal->setValue(value);
 }
 
 void Window_Editor_t::setSliderLinePositionFromVideo(qint64 pos) {
-    qDebug() << "lol2";
     SliderLine->move(pos/100, 0);
 }
 
@@ -196,49 +198,51 @@ void Window_Editor_t::updateRecordPlayer() {
     foreach(QtAV::AVPlayer * recordPlayer, VectorMediaPlayer) {
         recordPlayer->stop();
     }
-    uint32_t currentVideoPosition = Window_Video_Ptr->getPlayerPosition();
-    if (MapTimeRecord.upperBound(currentVideoPosition) != MapTimeRecord.end()) {
-        NextPlayingStartTime = MapTimeRecord.upperBound(currentVideoPosition).value().first()->StartTime();
-        NextPlayintId = MapTimeRecord.upperBound(currentVideoPosition).value().first()->Id();
-        uint32_t nextTime = NextPlayingStartTime - currentVideoPosition;
-        if (!Window_Video_Ptr->isPaused()) {
-            TimerNextPlayRecord->setInterval(nextTime);
-            TimerNextPlayRecord->start();
-        }
-    }
-    else {
-        return;
-    }
-//    qDebug() << "currentPos " << currentVideoPosition;
-//    qDebug() << "nextTime " << NextPlayingStartTime;
-
-    foreach (auto map, MapTimeRecord) {
-        foreach(Record *item, map) {
-            if (item->StartTime() > currentVideoPosition) {
-                break;
+    if (!CheckBoxMuteRecords->isChecked()) {
+        uint32_t currentVideoPosition = Window_Video_Ptr->getPlayerPosition();
+        if (MapTimeRecord.upperBound(currentVideoPosition) != MapTimeRecord.end()) {
+            NextPlayingStartTime = MapTimeRecord.upperBound(currentVideoPosition).value().first()->StartTime();
+            NextPlayintId = MapTimeRecord.upperBound(currentVideoPosition).value().first()->Id();
+            uint32_t nextTime = NextPlayingStartTime - currentVideoPosition;
+            if (!Window_Video_Ptr->isPaused()) {
+                TimerNextPlayRecord->setInterval(nextTime);
+                TimerNextPlayRecord->start();
             }
-            if (item->EndTime() > currentVideoPosition) {
-                foreach(QtAV::AVPlayer * recordPlayer, VectorMediaPlayer) {
-                    if (!recordPlayer->isPlaying()) {
-                        recordPlayer->setFile(Window_Control_Ptr->RecordPath() + "//" + item->Name());
-                        recordPlayer->setStartPosition(qint64(currentVideoPosition - item->StartTime()));
-                        recordPlayer->audio()->setVolume(0.8);
-                        if (!Window_Video_Ptr->isPaused()) {
-                            qDebug() << "je pa";
-                            recordPlayer->play();
+        }
+        else {
+            return;
+        }
+    //    qDebug() << "currentPos " << currentVideoPosition;
+    //    qDebug() << "nextTime " << NextPlayingStartTime;
+
+        foreach (auto map, MapTimeRecord) {
+            foreach(Record *item, map) {
+                if (item->StartTime() > currentVideoPosition) {
+                    break;
+                }
+                if (item->EndTime() > currentVideoPosition) {
+                    foreach(QtAV::AVPlayer * recordPlayer, VectorMediaPlayer) {
+                        if (!recordPlayer->isPlaying()) {
+                            recordPlayer->setFile(Window_Control_Ptr->RecordPath() + "//" + item->Name());
+                            recordPlayer->setStartPosition(qint64(currentVideoPosition - item->StartTime()));
+                            recordPlayer->audio()->setVolume(0.8);
+                            if (!Window_Video_Ptr->isPaused()) {
+                                qDebug() << "je pa";
+                                recordPlayer->play();
+                            }
+                            break;
                         }
-                        break;
-                    }
-                    else {
-                        QtAV::AVPlayer *newRecordPlayer = new QtAV::AVPlayer(this);
-                        VectorMediaPlayer.append(newRecordPlayer);
-                        newRecordPlayer->setFile(Window_Control_Ptr->RecordPath() + "//" + item->Name());
-                        recordPlayer->setStartPosition(qint64(currentVideoPosition - item->StartTime()));
-                        newRecordPlayer->audio()->setVolume(0.8);
-                        if (!Window_Video_Ptr->isPaused()) {
-                            newRecordPlayer->play();
+                        else {
+                            QtAV::AVPlayer *newRecordPlayer = new QtAV::AVPlayer(this);
+                            VectorMediaPlayer.append(newRecordPlayer);
+                            newRecordPlayer->setFile(Window_Control_Ptr->RecordPath() + "//" + item->Name());
+                            recordPlayer->setStartPosition(qint64(currentVideoPosition - item->StartTime()));
+                            newRecordPlayer->audio()->setVolume(0.8);
+                            if (!Window_Video_Ptr->isPaused()) {
+                                newRecordPlayer->play();
+                            }
+                            break;
                         }
-                        break;
                     }
                 }
             }
@@ -302,6 +306,8 @@ void Window_Editor_t::setAfterVideoLoad(qint64 duration) {
 //public slots
 
 void Window_Editor_t::addNewRecordObject(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name) {
+    EndTime = StartTime + (uint32_t)m_ffmpeg->getAudioDuration(Window_Control_Ptr->RecordPath() + "/" + Name);
+
     Record *record = new Record(RecordId, StartTime, EndTime, Name, WidgetRecordWorkPlace);
     record->createWaveFormPic(m_ffmpeg, Window_Control_Ptr->RecordPath());
     record->show();
@@ -316,6 +322,8 @@ void Window_Editor_t::addNewRecordObject(uint32_t RecordId, uint32_t StartTime, 
     }
 
     connect(record, &Record::relocateByMouseMove, this, &Window_Editor_t::relocateRecordInMap);
+    connect(record, &Record::onMouseMove, this, &Window_Editor_t::recordMoveSelected);
+    connect(record, &Record::onMousePress, this, &Window_Editor_t::recordSelected);
 
     MapRecord.insert(RecordId, record);
     Window_Control_Ptr->NextRecordId++;
@@ -344,6 +352,25 @@ void Window_Editor_t::videoPausePlayFromVideo(bool isPause) {
             TimerNextPlayRecord->start();
         }
     }
+}
+
+void Window_Editor_t::recordSelected(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name) {
+
+    foreach (auto map, MapTimeRecord) {
+        if (map.contains(SelectedRecordId)) {
+            map[SelectedRecordId]->deselect();
+            break;
+        }
+    }
+
+    SelectedRecordId = RecordId;
+    LabelRecordEndTime->setText("EndTime: " + miliSecToTime(EndTime));
+    LabelRecordStartTime->setText("StartTime: " + miliSecToTime(StartTime));
+}
+
+void Window_Editor_t::recordMoveSelected(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name) {
+    LabelRecordEndTime->setText("EndTime: " + miliSecToTime(EndTime));
+    LabelRecordStartTime->setText("StartTime: " + miliSecToTime(StartTime));
 }
 
 

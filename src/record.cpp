@@ -1,7 +1,7 @@
 #include <record.hpp>
 
 Record::Record(uint32_t id, uint32_t startTime, uint32_t endTime, QString name, QWidget *parent) :
-    m_Id(id), m_StartTime(startTime), m_EndTime(endTime), m_Name(name), QWidget(parent)
+    QWidget(parent), m_Id(id), m_StartTime(startTime), m_EndTime(endTime), m_Name(name)
 {
     qDebug() << "record object";
     qDebug() << parent;
@@ -12,35 +12,36 @@ Record::Record(uint32_t id, uint32_t startTime, uint32_t endTime, QString name, 
 
 
     this->setGeometry(m_StartTime / 100, 0, (m_EndTime - m_StartTime) / 100, 50);
-    this->setToolTip("m_StartTime: " + QString::number(m_StartTime) + "\n" + "m_EndTime: " + QString::number(m_EndTime));
-    this->setToolTipDuration(0);
+    this->setToolTip("Name: " + m_Name + "\n" + "StartTime: " + QString::number(m_StartTime) + "\n" + "EndTime: " + QString::number(m_EndTime));
+    this->setToolTipDuration(-1);
 
-    QPalette Pal(palette());
-    Pal.setColor(QPalette::Background, Qt::darkGreen);
+    Palette = new QPalette(palette());
+    Palette->setColor(QPalette::Background, Qt::darkYellow);
     this->setAutoFillBackground(true);
-    this->setPalette(Pal);
+    this->setPalette(*Palette);
 
+
+    m_Duration = m_EndTime - m_StartTime;
     m_WavePic = new QLabel(this);
 
 }
 
 void Record::mousePressEvent(QMouseEvent *event) {
     if(event->button() == Qt::LeftButton) {
+        oldStartTime = m_StartTime;
+        onMousePress(m_Id, m_StartTime, m_EndTime, m_Name);
         this->raise();
-        dragStartPositionX = this->x();
         dragMouseOffsetX = event->pos().x();
 
-
-        QPalette Pal(palette());
-        Pal.setColor(QPalette::Background, Qt::blue);
-        this->setAutoFillBackground(true);
-        this->setPalette(Pal);
+        Palette->setColor(QPalette::Background, Qt::blue);
+        this->setPalette(*Palette);
     }
     event->ignore();
 }
 
 void Record::mouseMoveEvent(QMouseEvent *event) {
     if(event->buttons() & Qt::LeftButton) {
+
         if (event->pos().y() > 50){
             QPoint movePoint(this->x(), this->y() + 50);
             if (movePoint.y() < 0 || (movePoint.y() + this->height()) > parentWidget()->height())
@@ -58,6 +59,9 @@ void Record::mouseMoveEvent(QMouseEvent *event) {
             if (movePoint.x() < 0 || (movePoint.x() + this->width()) > parentWidget()->width())
                 return;
             this->move(movePoint);
+            m_StartTime = this->x() * 100;
+            m_EndTime = (m_StartTime + m_Duration);
+            onMouseMove(m_Id, m_StartTime, m_EndTime, m_Name);
         }
     }
     event->ignore();
@@ -67,21 +71,13 @@ void Record::mouseReleaseEvent(QMouseEvent *event) {
     if(event->button() == Qt::LeftButton) {
         // konstatnta 100 == aktuální zoom
 
-        int tmp = ((this->x() - dragStartPositionX) * 100);
-        int oldStartTime = m_StartTime;
-        m_StartTime = m_StartTime + tmp;
-        m_EndTime = m_EndTime + tmp;
         if (m_StartTime != oldStartTime) {
             relocateByMouseMove(m_Id, oldStartTime);
         }
-
+        onMouseRelease(m_Id, m_StartTime, m_EndTime, m_Name);
     }
-    this->setToolTip("m_StartTime: " + QString::number(m_StartTime) + "\n" + "m_EndTime: " + QString::number(m_EndTime));
+    this->setToolTip("Name: " + m_Name + "\n" + "StartTime: " + QString::number(m_StartTime) + "\n" + "EndTime: " + QString::number(m_EndTime));
     this->setToolTipDuration(0);
-    QPalette Pal(palette());
-    Pal.setColor(QPalette::Background, Qt::darkGreen);
-    this->setAutoFillBackground(true);
-    this->setPalette(Pal);
     event->ignore();
 }
 
@@ -140,6 +136,10 @@ void Record::createWaveFormPic(Ffmpeg_t *ffmpeg, QString recortPath) {
 
 }
 
+void Record::deselect() {
+    Palette->setColor(QPalette::Background, Qt::darkYellow);
+    this->setPalette(*Palette);
+}
 
 Record::~Record()
 {

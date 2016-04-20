@@ -22,10 +22,8 @@ class Microphone : public QWidget
 
 
     private:
-        void createUi();
-
-        Window_Video_t *Window_Video_Ptr;
         Window_Control_t *Window_Control_Ptr;
+        Window_Video_t *Window_Video_Ptr;
         QAudioRecorder *AudioRecorder;
         QTimer *TimerRecord;
 
@@ -39,6 +37,12 @@ class Microphone : public QWidget
         uint32_t DurationTime;
         uint32_t StartTime;
         uint32_t EndTime;
+
+        void createUi();
+
+    public slots:
+
+        void videoStopEnd();
 
     private slots:
         void startRecord();
