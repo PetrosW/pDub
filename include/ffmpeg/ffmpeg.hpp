@@ -104,7 +104,7 @@ class Ffmpeg_t
 {
     public:
         Ffmpeg_t();
-        void splitTrack(std::string FileName, uint32_t SplitDuration);
+        void splitTrack(Record *Recording, QString Path, uint32_t FirstId, uint32_t SplitDuration);
         uint64_t getAudioDuration(QString FileName);
         std::pair<std::vector<double>, std::vector<double> > getSamplesForWaveformPlotting(QString FileName);
         void convertInputAudio(QString FileName, std::string Id);
@@ -125,7 +125,7 @@ class Ffmpeg_t
         int32_t ResamplingBufferSize;
         
         void initInputFileAudio(QString FileName, AVFormatContext **Container = nullptr);
-        void writePacketsToFile(std::string &SplitFile, uint32_t SplitDuration);
+        void writePacketsToFile(QString &SplitFile, uint32_t SplitDuration);
         void cleanUp_SplitTrack(FfmpegCleanUpLevelCode_SplitTrack::Type Level, bool CloseInput = 1);
         void cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::Type Level, AVFrame **Frame = nullptr, SwrContext **ResampleContext = nullptr);
         void separateChannelSamples(int16_t *SamplePtr, std::vector<double> &Channel1, std::vector<double> &Channel2, int16_t SampleCountXChannels, bool Restart);

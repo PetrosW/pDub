@@ -521,24 +521,19 @@ void Ffmpeg_t::initInputFileAudio(QString FileName, AVFormatContext **Container)
     if (!Container) av_init_packet(&Packet);
 }
 
-void Ffmpeg_t::splitTrack(std::string FileName, uint32_t SplitDuration)
+void Ffmpeg_t::splitTrack(Record *Recording, QString Path, uint32_t FirstId, uint32_t SplitDuration)
 {
     if (!SplitDuration) throw FfmpegException_t(FfmpegErrorCode::SPLIT_DURATION_1_EMPTY, 0);
     
-    std::string SplitFile_1, SplitFile_2;
-    SplitFile_1 = SplitFile_2 = FileName;
-    
-    // Creating file names for split tracks
-    SplitFile_1.replace(SplitFile_1.find_last_of("."), 1, "_1.");
-    SplitFile_2.replace(SplitFile_2.find_last_of("."), 1, "_2.");
+    QString SplitFile_1 = Path + "/record" + QString::number(FirstId++) + ".wav";
+    QString SplitFile_2 = Path + "/record" + QString::number(FirstId) + ".wav";
     
     // Transforming miliseconds to sample count (44.1 samples = 1 ms when 44100 KHz sampling freq)
     SplitDuration = static_cast<uint64_t>(SplitDuration * 44.1);
     
-    QString lol = FileName.c_str();
-    initInputFileAudio(lol);
+    initInputFileAudio(Path + "/" + Recording->Name() );
     
-    av_dump_format(Container_In, 0, FileName.c_str(), 0);
+    av_dump_format(Container_In, 0, Recording->Name().toStdString().c_str(), 0);
     
     writePacketsToFile(SplitFile_1, SplitDuration);
     writePacketsToFile(SplitFile_2, 0);
@@ -546,9 +541,9 @@ void Ffmpeg_t::splitTrack(std::string FileName, uint32_t SplitDuration)
     avformat_close_input(&Container_In);
 }
 
-void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint32_t SplitDuration)
+void Ffmpeg_t::writePacketsToFile(QString &SplitFile, uint32_t SplitDuration)
 {
-    int32_t ErrCode = avformat_alloc_output_context2(&Container_Out, nullptr, nullptr, SplitFile.c_str() );
+    int32_t ErrCode = avformat_alloc_output_context2(&Container_Out, nullptr, nullptr, SplitFile.toStdString().c_str() );
     if (ErrCode < 0)
     {
         cleanUp_SplitTrack(FfmpegCleanUpLevelCode_SplitTrack::LEVEL_AVFORMAT_INPUT);
@@ -577,7 +572,7 @@ void Ffmpeg_t::writePacketsToFile(std::string &SplitFile, uint32_t SplitDuration
     // If output needs a file, open it
     if (!(Container_Out->oformat->flags & AVFMT_NOFILE) )
     {
-        ErrCode = avio_open(&Container_Out->pb, SplitFile.c_str(), AVIO_FLAG_WRITE);
+        ErrCode = avio_open(&Container_Out->pb, SplitFile.toStdString().c_str(), AVIO_FLAG_WRITE);
         if (ErrCode < 0)
         {
             cleanUp_SplitTrack(FfmpegCleanUpLevelCode_SplitTrack::LEVEL_AVFORMAT_CONTEXT);
