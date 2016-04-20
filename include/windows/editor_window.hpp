@@ -97,6 +97,7 @@ class Window_Editor_t : public QWidget
         void updateRecordPlayer();
         void updateRecordPlayerTimer();
         void relocateRecordInMap(uint32_t RecordID, uint32_t OldStartTime);
+        void split();
 
     public slots:
         void setSliderLinePosition(uint32_t pos);
