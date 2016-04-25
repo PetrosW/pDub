@@ -3,12 +3,12 @@
 Record::Record(uint32_t id, uint32_t startTime, uint32_t endTime, QString name, QWidget *parent) :
     QWidget(parent), m_Id(id), m_StartTime(startTime), m_EndTime(endTime), m_Name(name)
 {
-    qDebug() << "record object";
-    qDebug() << parent;
-    qDebug() << m_Id;
-    qDebug() << m_StartTime;
-    qDebug() << m_EndTime;
-    qDebug() << m_Name;
+//    qDebug() << "record object";
+//    qDebug() << parent;
+//    qDebug() << m_Id;
+//    qDebug() << m_StartTime;
+//    qDebug() << m_EndTime;
+//    qDebug() << m_Name;
 
 
     this->setGeometry(m_StartTime / 100, 0, (m_EndTime - m_StartTime) / 100, 50);
@@ -16,7 +16,7 @@ Record::Record(uint32_t id, uint32_t startTime, uint32_t endTime, QString name, 
     this->setToolTipDuration(-1);
 
     Palette = new QPalette(palette());
-    Palette->setColor(QPalette::Background, Qt::darkYellow);
+    Palette->setColor(QPalette::Background, Qt::darkRed);
     this->setAutoFillBackground(true);
     this->setPalette(*Palette);
 
@@ -137,7 +137,7 @@ void Record::createWaveFormPic(Ffmpeg_t *ffmpeg, QString recortPath) {
 }
 
 void Record::deselect() {
-    Palette->setColor(QPalette::Background, Qt::darkYellow);
+    Palette->setColor(QPalette::Background, Qt::darkRed);
     this->setPalette(*Palette);
 }
 

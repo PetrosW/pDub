@@ -327,10 +327,10 @@ void Window_Editor_t::setAfterVideoLoad(qint64 duration) {
 
 void Window_Editor_t::addNewRecordObject(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name) {
     EndTime = StartTime + (uint32_t)m_ffmpeg->getAudioDuration(Window_Control_Ptr->RecordPath() + "/" + Name);
-
     Record *record = new Record(RecordId, StartTime, EndTime, Name, WidgetRecordWorkPlace);
     record->createWaveFormPic(m_ffmpeg, Window_Control_Ptr->RecordPath());
     record->show();
+
 
     if (MapTimeRecord.contains(StartTime)) {
         MapTimeRecord[StartTime].insert(RecordId, record);
@@ -341,11 +341,11 @@ void Window_Editor_t::addNewRecordObject(uint32_t RecordId, uint32_t StartTime, 
         MapTimeRecord.insert(StartTime, MapRecord);
     }
 
+
     connect(record, &Record::relocateByMouseMove, this, &Window_Editor_t::relocateRecordInMap);
     connect(record, &Record::onMouseMove, this, &Window_Editor_t::recordMoveSelected);
     connect(record, &Record::onMousePress, this, &Window_Editor_t::recordSelected);
 
-    MapRecord.insert(RecordId, record);
     Window_Control_Ptr->NextRecordId++;
 
 }
