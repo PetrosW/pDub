@@ -94,7 +94,7 @@ void Microphone::stopRecord() {
     disconnect(ButtonRecord, SIGNAL(clicked()), this, SLOT(stopRecord()));
     connect(ButtonRecord, SIGNAL(clicked()), this, SLOT(startRecord()));
     ButtonRecord->setText("Record");
-    recordingEnd(Window_Control_Ptr->NextRecordId, StartTime, 0, "record" + QString::number(Window_Control_Ptr->NextRecordId) + ".wav");
+    recordingEnd(Window_Control_Ptr->NextRecordId, StartTime, 0, "record" + QString::number(Window_Control_Ptr->NextRecordId) + ".wav", 500); //500 kvůli řadě
 
 }
 

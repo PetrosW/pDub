@@ -1,7 +1,7 @@
 #include <record.hpp>
 
-Record::Record(uint32_t id, uint32_t startTime, uint32_t endTime, QString name, QWidget *parent) :
-    QWidget(parent), m_Id(id), m_StartTime(startTime), m_EndTime(endTime), m_Name(name)
+Record::Record(uint32_t id, uint32_t startTime, uint32_t endTime, QString name, uint32_t rowPosition, QWidget *parent) :
+    QWidget(parent), m_Id(id), m_StartTime(startTime), m_EndTime(endTime), m_Name(name), m_RowPosition(rowPosition)
 {
 //    qDebug() << "record object";
 //    qDebug() << parent;
@@ -11,7 +11,7 @@ Record::Record(uint32_t id, uint32_t startTime, uint32_t endTime, QString name, 
 //    qDebug() << m_Name;
 
 
-    this->setGeometry(m_StartTime / 100, 0, (m_EndTime - m_StartTime) / 100, 50);
+    this->setGeometry(m_StartTime / 100, m_RowPosition * 50, (m_EndTime - m_StartTime) / 100, 50);
     this->setToolTip("Name: " + m_Name + "\n" + "StartTime: " + QString::number(m_StartTime) + "\n" + "EndTime: " + QString::number(m_EndTime));
     this->setToolTipDuration(-1);
 
@@ -23,6 +23,9 @@ Record::Record(uint32_t id, uint32_t startTime, uint32_t endTime, QString name, 
 
     m_Duration = m_EndTime - m_StartTime;
     m_WavePic = new QLabel(this);
+
+    CheckBoxMuteRecord = new QCheckBox(this);
+    CheckBoxMuteRecord->setChecked(true);
 
 }
 
@@ -44,12 +47,14 @@ void Record::mouseMoveEvent(QMouseEvent *event) {
 
         if (event->pos().y() > 50){
             QPoint movePoint(this->x(), this->y() + 50);
+            m_RowPosition++;
             if (movePoint.y() < 0 || (movePoint.y() + this->height()) > parentWidget()->height())
                 return;
             this->move(movePoint);
         }
         else if (event->pos().y() < 0) {
             QPoint movePoint(this->x(), this->y() - 50);
+            m_RowPosition--;
             if (movePoint.y() < 0 || (movePoint.y() + this->height()) > parentWidget()->height())
                 return;
             this->move(movePoint);
@@ -139,6 +144,10 @@ void Record::createWaveFormPic(Ffmpeg_t *ffmpeg, QString recortPath) {
 void Record::deselect() {
     Palette->setColor(QPalette::Background, Qt::darkRed);
     this->setPalette(*Palette);
+}
+
+bool Record::isMuted() {
+    return !CheckBoxMuteRecord->isChecked();
 }
 
 Record::~Record()

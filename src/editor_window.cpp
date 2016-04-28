@@ -137,7 +137,8 @@ void Window_Editor_t::createUi() {
     connect(WidgetRecordWorkPlace, &RecordWorkplace::sliderPositionChanged, SliderEditorControl, &SliderEditor::setSliderLinePosition);
     connect(Window_Video_Ptr, &Window_Video_t::signalVideoTimePositionSliderMove, this, &Window_Editor_t::updateRecordPlayer);
     connect(CheckBoxMuteRecords, &QCheckBox::stateChanged, this, &Window_Editor_t::updateRecordPlayer);
-    connect(ButtonSplit, &QPushButton::clicked, this, &Window_Editor_t::split);
+    connect(ButtonSplit, &QPushButton::clicked, this, &Window_Editor_t::splitRecord);
+    connect(ButtonDelete, &QPushButton::clicked, this, &Window_Editor_t::deleteRecord);
 
     SliderEditorControl->show();
     WidgetWorkPlace->show();
@@ -199,9 +200,15 @@ void Window_Editor_t::updateRecordPlayer() {
     foreach(QtAV::AVPlayer * recordPlayer, VectorMediaPlayer) {
         recordPlayer->stop();
     }
+
     if (!CheckBoxMuteRecords->isChecked()) {
+        bool findRec = false;
         uint32_t currentVideoPosition = Window_Video_Ptr->getPlayerPosition();
-        if (MapTimeRecord.upperBound(currentVideoPosition) != MapTimeRecord.end()) {
+        while (MapTimeRecord.upperBound(currentVideoPosition) != MapTimeRecord.end()) {
+            if (MapTimeRecord.upperBound(currentVideoPosition).value().first()->isMuted()) {
+                currentVideoPosition = MapTimeRecord.upperBound(currentVideoPosition).value().first()->StartTime()+1;
+                continue;
+            }
             NextPlayingStartTime = MapTimeRecord.upperBound(currentVideoPosition).value().first()->StartTime();
             NextPlayintId = MapTimeRecord.upperBound(currentVideoPosition).value().first()->Id();
             uint32_t nextTime = NextPlayingStartTime - currentVideoPosition;
@@ -209,8 +216,10 @@ void Window_Editor_t::updateRecordPlayer() {
                 TimerNextPlayRecord->setInterval(nextTime);
                 TimerNextPlayRecord->start();
             }
+            findRec = true;
+            break;
         }
-        else {
+        if (!findRec) {
             return;
         }
     //    qDebug() << "currentPos " << currentVideoPosition;
@@ -218,7 +227,7 @@ void Window_Editor_t::updateRecordPlayer() {
 
         foreach (auto map, MapTimeRecord) {
             foreach(Record *item, map) {
-                if (item->StartTime() > currentVideoPosition) {
+                if (item->StartTime() > currentVideoPosition || item->isMuted()) {
                     break;
                 }
                 if (item->EndTime() > currentVideoPosition) {
@@ -228,7 +237,6 @@ void Window_Editor_t::updateRecordPlayer() {
                             recordPlayer->setStartPosition(qint64(currentVideoPosition - item->StartTime()));
                             recordPlayer->audio()->setVolume(0.8);
                             if (!Window_Video_Ptr->isPaused()) {
-                                qDebug() << "je pa";
                                 recordPlayer->play();
                             }
                             break;
@@ -275,35 +283,94 @@ void Window_Editor_t::updateRecordPlayerTimer() {
     }
 
     NextPlayingStartTime++;
-    if (MapTimeRecord.upperBound(NextPlayingStartTime) != MapTimeRecord.end()) {
-        NextPlayintId = MapTimeRecord.upperBound(NextPlayingStartTime).value().first()->Id();
-        NextPlayingStartTime = MapTimeRecord.upperBound(NextPlayingStartTime).value().first()->StartTime();
-        uint32_t nextTime = NextPlayingStartTime - currentVideoPosition;
-        if (!Window_Video_Ptr->isPaused()) {
-            TimerNextPlayRecord->setInterval(nextTime);
-            TimerNextPlayRecord->start();
+    if (!CheckBoxMuteRecords->isChecked()) {
+        while (MapTimeRecord.upperBound(NextPlayingStartTime) != MapTimeRecord.end()) {
+            if (MapTimeRecord.upperBound(NextPlayingStartTime).value().first()->isMuted()) {
+                NextPlayingStartTime = MapTimeRecord.upperBound(NextPlayingStartTime).value().first()->StartTime()+1;
+                continue;
+            }
+            NextPlayintId = MapTimeRecord.upperBound(NextPlayingStartTime).value().first()->Id();
+            NextPlayingStartTime = MapTimeRecord.upperBound(NextPlayingStartTime).value().first()->StartTime();
+            uint32_t nextTime = NextPlayingStartTime - currentVideoPosition;
+            if (!Window_Video_Ptr->isPaused()) {
+                TimerNextPlayRecord->setInterval(nextTime);
+                TimerNextPlayRecord->start();
+            }
+            break;
         }
     }
     //qDebug() << "nextTime" << NextPlayingStartTime;
 }
 
-void Window_Editor_t::split() {
-    qDebug() << "split";
+void Window_Editor_t::splitRecord() {
     Record *splitRec;
-    foreach (auto map, MapTimeRecord) {
-        if (map.contains(SelectedRecordId)) {
-            splitRec = map[SelectedRecordId];
+//    foreach (auto map, MapTimeRecord) {
+//        if (map.contains(SelectedRecordId)) {
+//            splitRec = map[SelectedRecordId];
+//            uint32_t pos = (SliderLine->x()*100) - splitRec->StartTime();
+//            m_ffmpeg->splitTrack(splitRec,Window_Control_Ptr->RecordPath(),Window_Control_Ptr->NextRecordId,pos);
+//            addNewRecordObject(Window_Control_Ptr->NextRecordId, splitRec->StartTime(), 0, "record"+QString::number(Window_Control_Ptr->NextRecordId)+".wav");
+//            addNewRecordObject(Window_Control_Ptr->NextRecordId, splitRec->StartTime()+pos+1, 0, "record"+QString::number(Window_Control_Ptr->NextRecordId)+".wav");
+//            SelectedRecordId = Window_Control_Ptr->NextRecordId;
+//            map.remove(SelectedRecordId);
+//            delete splitRec;
+//            break;
+//        }
+//    }
+
+    for (auto it = MapTimeRecord.begin(); it != MapTimeRecord.end();) {
+        if (it.value().contains(SelectedRecordId)) {
+            splitRec = it.value()[SelectedRecordId];
             uint32_t pos = (SliderLine->x()*100) - splitRec->StartTime();
             m_ffmpeg->splitTrack(splitRec,Window_Control_Ptr->RecordPath(),Window_Control_Ptr->NextRecordId,pos);
-            addNewRecordObject(Window_Control_Ptr->NextRecordId, splitRec->StartTime(), 0, "record"+QString::number(Window_Control_Ptr->NextRecordId)+".wav");
-            addNewRecordObject(Window_Control_Ptr->NextRecordId, splitRec->StartTime()+pos+1, 0, "record"+QString::number(Window_Control_Ptr->NextRecordId)+".wav");
-            SelectedRecordId = Window_Control_Ptr->NextRecordId;
-            map.remove(SelectedRecordId);
+            addNewRecordObject(Window_Control_Ptr->NextRecordId, splitRec->StartTime(), 0, "record"+QString::number(Window_Control_Ptr->NextRecordId)+".wav", splitRec->RowPosition());
+            addNewRecordObject(Window_Control_Ptr->NextRecordId, splitRec->StartTime()+pos+1, 0, "record"+QString::number(Window_Control_Ptr->NextRecordId)+".wav", splitRec->RowPosition());
             delete splitRec;
+            it.value().remove(SelectedRecordId);
+            SelectedRecordId = Window_Control_Ptr->NextRecordId - 1;
+
+            if (it.value().isEmpty()) {
+                MapTimeRecord.erase(it);
+            }
+
             break;
+        }
+        else {
+            ++it;
         }
     }
 
+    foreach (auto map, MapTimeRecord) {
+        foreach(Record *item, map) {
+            qDebug() << item->Name();
+        }
+    }
+
+}
+
+void Window_Editor_t::deleteRecord() {
+
+    for (auto it = MapTimeRecord.begin(); it != MapTimeRecord.end();) {
+        if (it.value().contains(SelectedRecordId)) {
+            delete it.value()[SelectedRecordId];
+            it.value().remove(SelectedRecordId);
+
+            if (it.value().isEmpty()) {
+                MapTimeRecord.erase(it);
+            }
+
+            break;
+        }
+        else {
+            ++it;
+        }
+    }
+
+    foreach (auto map, MapTimeRecord) {
+        foreach(Record *item, map) {
+            qDebug() << item->Name();
+        }
+    }
 }
 
 //protected
@@ -325,9 +392,12 @@ void Window_Editor_t::setAfterVideoLoad(qint64 duration) {
 
 //public slots
 
-void Window_Editor_t::addNewRecordObject(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name) {
+void Window_Editor_t::addNewRecordObject(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name, uint32_t RowPosition) {
     EndTime = StartTime + (uint32_t)m_ffmpeg->getAudioDuration(Window_Control_Ptr->RecordPath() + "/" + Name);
-    Record *record = new Record(RecordId, StartTime, EndTime, Name, WidgetRecordWorkPlace);
+    if (RowPosition == 500) {
+        RowPosition = 0;
+    }
+    Record *record = new Record(RecordId, StartTime, EndTime, Name, RowPosition, WidgetRecordWorkPlace);
     record->createWaveFormPic(m_ffmpeg, Window_Control_Ptr->RecordPath());
     record->show();
 

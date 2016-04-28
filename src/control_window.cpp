@@ -32,7 +32,7 @@ void Window_Control_t::setDeafaultMicrophone(){
 
 void Window_Control_t::newMicrophone() {
     Microphone *mic1 = new Microphone(this, Window_Video_Ptr, this);
-    connect(mic1, SIGNAL(recordingEnd(uint32_t, uint32_t, uint32_t, QString)), Window_Editor_Ptr, SLOT(addNewRecordObject(uint32_t, uint32_t, uint32_t, QString)));
+    connect(mic1, &Microphone::recordingEnd, Window_Editor_Ptr, &Window_Editor_t::addNewRecordObject);
     connect(this, &Window_Control_t::VideoStop, mic1, &Microphone::videoStopEnd);
     Layout->addWidget(mic1, 0, 1);
     Layout->setColumnMinimumWidth(1, 100);
@@ -164,7 +164,8 @@ void Window_Control_t::loadProject() {
         VideoFilePath = xmlReader.readElementText();
     //}
     xmlReader.readNextStartElement();  //první <record>
-    int id; int startTime; int endTime; QString name;
+    uint32_t id; uint32_t startTime; uint32_t endTime; QString name; uint32_t rowPosition;
+    uint32_t nextIdLoad = 0;
     while(!xmlReader.atEnd()) {
         if (xmlReader.isEndElement()) {
             xmlReader.readNext();
@@ -182,13 +183,16 @@ void Window_Control_t::loadProject() {
         xmlReader.readNextStartElement();*/
         endTime = xmlReader.readElementText().toUInt();
         xmlReader.readNextStartElement();
+        rowPosition = xmlReader.readElementText().toUInt();
+        xmlReader.readNextStartElement();
         xmlReader.readNextStartElement(); //nevím proč ale jinak to nejde
 
-        Window_Editor_Ptr->addNewRecordObject(id, startTime, endTime, name);
-        if (NextRecordId <= id) {
-            NextRecordId = id + 1;
+        Window_Editor_Ptr->addNewRecordObject(id, startTime, endTime, name, rowPosition);
+        if (nextIdLoad <= id) {
+            nextIdLoad = id + 1;
         }
     }
+    NextRecordId = nextIdLoad;
     QDir().mkdir(m_RecordPath);
 
     /*listOfRecordsSave.clear();
@@ -196,7 +200,7 @@ void Window_Control_t::loadProject() {
         listOfRecordsSave.insert(i, listOfRecords[i]);
     }*/
     file.close();
-
+    qDebug() << "NextRecordId " << NextRecordId;
     Window_Video_Ptr->firstPlay(VideoFilePath);
 
 }
@@ -225,7 +229,9 @@ void Window_Control_t::saveProject() {
     //}
     xmlWriter.writeEndElement();
 
+    qDebug() << "save";
     foreach (auto map, Window_Editor_Ptr->MapTimeRecord) {
+        qDebug() << "save22";
         foreach(Record *item, map) {
             xmlWriter.writeStartElement("record");
             xmlWriter.writeAttribute("id", QString::number(item->Id()));
@@ -234,6 +240,7 @@ void Window_Control_t::saveProject() {
             //xmlWriter.writeTextElement("color", value.color);
             //xmlWriter.writeTextElement("row", QString::number(value.row));
             xmlWriter.writeTextElement("endTime", QString::number(item->EndTime()));
+            xmlWriter.writeTextElement("rowPosition", QString::number(item->RowPosition()));
             xmlWriter.writeEndElement();
         }
     }
@@ -256,10 +263,10 @@ void Window_Control_t::saveProject() {
 void Window_Control_t::exportProject() {
     QString tmpr = m_ProjectFolder + "/output.mp3";
     try {
-    Window_Editor_Ptr->m_ffmpeg->exportProject(Window_Editor_Ptr->MapTimeRecord, m_RecordPath + "/", tmpr, VideoFilePath, 0, Window_Video_Ptr->videoDuration(), FfmpegExportComponents::AUDIO);
+        Window_Editor_Ptr->m_ffmpeg->exportProject(Window_Editor_Ptr->MapTimeRecord, m_RecordPath + "/", tmpr, VideoFilePath, 0, Window_Video_Ptr->videoDuration(), FfmpegExportComponents::AUDIO);
     }
     catch (FfmpegException_t &e) {
-        qDebug() << e.getErrorCode();
+        qDebug() << "Export error: " << e.getErrorCode();
     }
 
     catch (...) {

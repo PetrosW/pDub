@@ -97,12 +97,13 @@ class Window_Editor_t : public QWidget
         void updateRecordPlayer();
         void updateRecordPlayerTimer();
         void relocateRecordInMap(uint32_t RecordID, uint32_t OldStartTime);
-        void split();
+        void splitRecord();
+        void deleteRecord();
 
     public slots:
         void setSliderLinePosition(uint32_t pos);
         void videoPausePlayFromVideo(bool isPause);
-        void addNewRecordObject(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name);
+        void addNewRecordObject(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name, uint32_t RowPosition);
         void recordSelected(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name);
         void recordMoveSelected(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name);
 };
