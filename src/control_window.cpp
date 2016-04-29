@@ -110,6 +110,14 @@ void Window_Control_t::newProject(QString projectName, QString videoFilePath, QS
     m_RecordPath = m_ProjectFolder + "/records";
     QDir().mkdir(m_RecordPath);
     Window_Video_Ptr->firstPlay(VideoFilePath);
+
+    foreach (auto map, Window_Editor_Ptr->MapTimeRecord) {
+        foreach(Record *item, map) {
+            delete item;
+        }
+        map.clear();
+    }
+    Window_Editor_Ptr->MapTimeRecord.clear();
 }
 
 void Window_Control_t::newProjectDialog() {
@@ -266,7 +274,7 @@ void Window_Control_t::exportProject() {
         Window_Editor_Ptr->m_ffmpeg->exportProject(Window_Editor_Ptr->MapTimeRecord, m_RecordPath + "/", tmpr, VideoFilePath, 0, Window_Video_Ptr->videoDuration(), FfmpegExportComponents::AUDIO);
     }
     catch (FfmpegException_t &e) {
-        qDebug() << "Export error: " << e.getErrorCode();
+        qDebug() << "Export error: " << e.what();
     }
 
     catch (...) {
