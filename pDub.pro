@@ -19,6 +19,7 @@ HEADERS = include/common.hpp \
           include/pdub.hpp \
           include/microphone.hpp \
           include/record.hpp \
+          include/windows/main_window.hpp \
           include/windows/control_window.hpp \
           include/windows/video_window.hpp \
           include/windows/editor_window.hpp \
@@ -33,9 +34,9 @@ HEADERS = include/common.hpp \
           qcustomplot-source/qcustomplot.h
 
 
-
 SOURCES = src/main.cpp \
           src/pdub.cpp \
+          src/main_window.cpp \
           src/control_window.cpp \
           src/video_window.cpp \
           src/editor_window.cpp \
@@ -49,3 +50,4 @@ SOURCES = src/main.cpp \
           src/slider_editor.cpp \
           src/record_workplace.cpp \
           qcustomplot-source/qcustomplot.cpp
+

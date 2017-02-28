@@ -14,8 +14,8 @@
 #include <common.hpp>
 
 #include <slider_editor.hpp>
-#include <windows/control_window.hpp>
-#include <windows/video_window.hpp>
+#include <include/windows/control_window.hpp>
+#include <include/windows/video_window.hpp>
 #include <record_workplace.hpp>
 
 
@@ -24,7 +24,7 @@ class Window_Editor_t : public QWidget
     Q_OBJECT
 
     public:
-        Window_Editor_t(Window_Control_t *Window_Control, QWidget *Window_Control_QWidget);
+        Window_Editor_t(QWidget *parent = nullptr);
 
         QMap<uint32_t, QMap<uint32_t, Record *> > MapTimeRecord;
         QMap<uint32_t, Record *> MapRecord;
@@ -32,12 +32,15 @@ class Window_Editor_t : public QWidget
         Ffmpeg_t *m_ffmpeg;
 
         void setWindowVideoPtr(Window_Video_t *Window_Video);
+        void setWindowControlPtr(Window_Control_t *Window_Control);
         void setAfterVideoLoad(qint64 duration);
         void createUi();
 
 
 
     private:
+
+        QWidget *MainWidget;
 
         Window_Control_t *Window_Control_Ptr;
         Window_Video_t *Window_Video_Ptr;

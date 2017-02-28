@@ -7,12 +7,9 @@
 #include <QApplication>
 #include <QDesktopWidget>
 #include <QRect>
-#include <QScreen>
 
 #include <common.hpp>
-#include <windows/control_window.hpp>
-#include <windows/video_window.hpp>
-#include <windows/editor_window.hpp>
+#include <windows/main_window.hpp>
 
 class PDub : public QApplication
 {
@@ -22,9 +19,7 @@ class PDub : public QApplication
         PDub(int &argc, char *argv[]);
 
     private:
-        Window_Control_t Window_Control;
-        Window_Video_t Window_Video;
-        Window_Editor_t Window_Editor;
+        Window_Main_t Window_Main;
 };
 
 #endif

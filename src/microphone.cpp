@@ -22,8 +22,7 @@ Microphone::Microphone(Window_Control_t *Window_Control_ptr, Window_Video_t *Win
     TimerRecord = new QTimer(this);
     connect(TimerRecord, SIGNAL(timeout()), this, SLOT(timerRecordTick()));
 
-
-    Layout = new QGridLayout(this);
+    Layout = new QGridLayout();
     this->setMaximumWidth(200);
     //layout->setSizeConstraint(QLayout::SetFixedSize);
     setLayout(Layout);

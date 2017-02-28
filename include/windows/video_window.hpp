@@ -15,8 +15,9 @@ class Window_Video_t : public QWidget
     Q_OBJECT
 
     public:
-        Window_Video_t(Window_Control_t *Window_Control, QWidget *Window_Control_QWidget);
+        Window_Video_t(QWidget *parent = nullptr);
         void setWindowEditorPtr(Window_Editor_t *Window_Editor);
+        void setWindowControlPtr(Window_Control_t *Window_Control);
 
         void firstPlay(QString FileName);
         int getPlayerPosition();
@@ -32,6 +33,8 @@ class Window_Video_t : public QWidget
         Window_Control_t *Window_Control_Ptr;
         Window_Editor_t *Window_Editor_Ptr;
 
+        QtAV::VideoPreviewWidget *m_preview;
+
         QGridLayout *Layout;
         QGridLayout *LayoutVideoControl;
         QLabel *LabelVideoTime;
@@ -43,6 +46,8 @@ class Window_Video_t : public QWidget
         QPushButton *ButtonSeekBackward;
         QSlider *SliderVideoTime;
         QSlider *SliderVideoVolume;
+
+        QPushButton *ButtonDockWindowVideo;
 
         bool isPlayingSliderPress; // pomocna pro urcovani pausi pred kliknutim na slider
         bool isPlaying;
@@ -68,6 +73,7 @@ class Window_Video_t : public QWidget
         void updateVideoTimePositionSliderPressed();
         void sliderPressRelease();
         void videoStopEnd();
+        void pauseOnFirstSeekPlay();
 };
 
 #endif

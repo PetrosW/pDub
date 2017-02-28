@@ -1,12 +1,10 @@
 #include <windows/control_window.hpp>
 
-Window_Control_t::Window_Control_t(QMainWindow *parent) : QMainWindow(parent), Window_Editor_Ptr(nullptr), Window_Video_Ptr(nullptr)
+Window_Control_t::Window_Control_t(QWidget *parent) : QWidget(parent), Window_Editor_Ptr(nullptr), Window_Video_Ptr(nullptr)
 {
 
     NextRecordId = 0;
-    createUi();
-    createToolBar();
-    show();
+    setWindowFlags(Qt::Tool);
     //nahození za jízdy, čili za show funguje
     /*QPushButton *button = new QPushButton("Hello");
     layout->addWidget(button);*/
@@ -16,12 +14,12 @@ Window_Control_t::Window_Control_t(QMainWindow *parent) : QMainWindow(parent), W
 
 void Window_Control_t::setWindowEditorPtr(Window_Editor_t *Window_Editor)
 {
-    Window_Editor_Ptr = Window_Editor;
+    this->Window_Editor_Ptr = Window_Editor;
 }
 
 void Window_Control_t::setWindowVideoPtr(Window_Video_t *Window_Video)
 {
-    Window_Video_Ptr = Window_Video;
+    this->Window_Video_Ptr = Window_Video;
 }
 
 void Window_Control_t::setDeafaultMicrophone(){
@@ -40,60 +38,21 @@ void Window_Control_t::newMicrophone() {
 
 void Window_Control_t::createUi() {
     setWindowTitle("pDub");
-    MainWidget = new QWidget(this);
-    this->setCentralWidget(MainWidget);
-    Layout = new QGridLayout(MainWidget);
-    Layout->setSizeConstraint(QLayout::SetMinAndMaxSize);
+    Layout = new QGridLayout();
+    //Layout->setSizeConstraint(QLayout::SetMinAndMaxSize);
     Layout->setColumnMinimumWidth(0, 100);
-    MainWidget->setLayout(Layout);
 
+    setLayout(Layout);
 
     ControlLayout = new QGridLayout();
+    //ControlLayout->setSizeConstraint(QLayout::SetMinAndMaxSize);
     Layout->addLayout(ControlLayout, 0, 0);
+
+    ButtonDockWindowVideo = new QPushButton(this);
+    ControlLayout->addWidget(ButtonDockWindowVideo, 0, 0);
+
 }
 
-void Window_Control_t::createToolBar() {
-
-    QMenuBar *MenuBar = new QMenuBar(this);
-    this->setMenuBar(MenuBar);
-
-
-//    newAct = new QAction(tr("&New"), this);
-//    newAct->setShortcuts(QKeySequence::New);
-//    newAct->setStatusTip(tr("Create a new file"));
-//    connect(newAct, SIGNAL(triggered()), this, SLOT(newFile()));
-
-
-    A_newProject = new QAction(tr("&New"), this);
-    A_newProject->setShortcuts(QKeySequence::New);
-    A_newProject->setToolTip(tr("Create a new project"));
-    connect(A_newProject, SIGNAL(triggered()), this, SLOT(newProjectDialog()));
-
-    A_loadProject = new QAction(tr("&Open"), this);
-    A_loadProject->setShortcuts(QKeySequence::Open);
-    A_loadProject->setToolTip(tr("O a old Project"));
-    connect(A_loadProject, SIGNAL(triggered()), this, SLOT(loadProject()));
-
-    A_saveProject = new QAction(tr("&Save"), this);
-    A_saveProject->setShortcuts(QKeySequence::Save);
-    A_saveProject->setToolTip(tr("Save a project"));
-    connect(A_saveProject, SIGNAL(triggered()), this, SLOT(saveProject()));
-
-    A_exportProject = new QAction(tr("&Export"), this);
-    A_exportProject->setShortcut(tr("Ctrl+E"));
-    A_exportProject->setToolTip(tr("Export a project"));
-    connect(A_exportProject, SIGNAL(triggered()), this, SLOT(exportProject()));
-
-    MenuBar->addAction(A_newProject);
-    MenuBar->addAction(A_loadProject);
-    MenuBar->addAction(A_saveProject);
-    MenuBar->addAction(A_exportProject);
-
-    //toolbar: dá se všemožně posouvat atd
-    /*QToolBar *ToolBar = new QToolBar(this);
-    this->addToolBar(ToolBar);
-    ToolBar->addAction("New project");*/
-}
 
 //public slots
 
@@ -103,182 +62,5 @@ void Window_Control_t::videoStopEnd() {
 
 //private slots
 
-void Window_Control_t::newProject(QString projectName, QString videoFilePath, QString projectFolder) {
-    ProjectName = projectName;
-    VideoFilePath = videoFilePath;
-    m_ProjectFolder = projectFolder;
-    m_RecordPath = m_ProjectFolder + "/records";
-    QDir().mkdir(m_RecordPath);
-    Window_Video_Ptr->firstPlay(VideoFilePath);
 
-    foreach (auto map, Window_Editor_Ptr->MapTimeRecord) {
-        foreach(Record *item, map) {
-            delete item;
-        }
-        map.clear();
-    }
-    Window_Editor_Ptr->MapTimeRecord.clear();
-}
-
-void Window_Control_t::newProjectDialog() {
-    // get a path and a name of file
-    newProject_dialog *NewProjectDialog = new newProject_dialog(this);
-    connect(NewProjectDialog, SIGNAL(accepted(QString, QString, QString)), this, SLOT(newProject(QString, QString, QString)));
-    NewProjectDialog->show();
-}
-
-
-void Window_Control_t::loadProject() {
-
-    QString projectFile = QFileDialog::getOpenFileName(this, tr("Open a pDab project"),"", tr("pDab files (*.pDab)"));
-    if (projectFile.isEmpty()) {
-        //LineEditSelectVideo->setText("Error");
-        return;
-    }
-
-    QFile file(projectFile);
-    QFileInfo fileInfo(file);
-
-    if (!file.open(QIODevice::ReadOnly | QFile::Text))
-        return;
-
-
-    foreach (auto map, Window_Editor_Ptr->MapTimeRecord) {
-        foreach(Record *item, map) {
-            delete item;
-        }
-        map.clear();
-    }
-    Window_Editor_Ptr->MapTimeRecord.clear();
-
-    //listOfRecords.clear(); // čištění při opětovném nahrávání
-    QXmlStreamReader xmlReader(&file);
-    xmlReader.readNextStartElement();  //start <pDab>
-    xmlReader.readNextStartElement();  //<nameOfProject>
-    ProjectName = xmlReader.readElementText();
-    xmlReader.readNextStartElement();  //<projectPath>
-    xmlReader.readElementText();
-    m_ProjectFolder = fileInfo.absolutePath();
-
-    m_RecordPath = m_ProjectFolder + "/records";
-    TmpPath = m_ProjectFolder + "/tmps";
-
-    xmlReader.readNextStartElement();  //<videoPath>
-    /*copyVideo = xmlReader.attributes().value("isCopy").toInt();
-    if (copyVideo) {
-        m_videoPath = m_projectPath + "/" + xmlReader.readElementText();
-    }
-    else {*/
-        VideoFilePath = xmlReader.readElementText();
-    //}
-    xmlReader.readNextStartElement();  //první <record>
-    uint32_t id; uint32_t startTime; uint32_t endTime; QString name; uint32_t rowPosition;
-    uint32_t nextIdLoad = 0;
-    while(!xmlReader.atEnd()) {
-        if (xmlReader.isEndElement()) {
-            xmlReader.readNext();
-            continue;
-        }
-        id = xmlReader.attributes().value("id").toUInt();
-        xmlReader.readNextStartElement();
-        name = xmlReader.readElementText();
-        xmlReader.readNextStartElement();
-        startTime = xmlReader.readElementText().toUInt();
-        xmlReader.readNextStartElement();
-        /*newRecord.color = xmlReader.readElementText();
-        xmlReader.readNextStartElement();
-        newRecord.row = xmlReader.readElementText().toInt();
-        xmlReader.readNextStartElement();*/
-        endTime = xmlReader.readElementText().toUInt();
-        xmlReader.readNextStartElement();
-        rowPosition = xmlReader.readElementText().toUInt();
-        xmlReader.readNextStartElement();
-        xmlReader.readNextStartElement(); //nevím proč ale jinak to nejde
-
-        Window_Editor_Ptr->addNewRecordObject(id, startTime, endTime, name, rowPosition);
-        if (nextIdLoad <= id) {
-            nextIdLoad = id + 1;
-        }
-    }
-    NextRecordId = nextIdLoad;
-    QDir().mkdir(m_RecordPath);
-
-    /*listOfRecordsSave.clear();
-    foreach (int i, listOfRecords.keys()) {
-        listOfRecordsSave.insert(i, listOfRecords[i]);
-    }*/
-    file.close();
-    qDebug() << "NextRecordId " << NextRecordId;
-    Window_Video_Ptr->firstPlay(VideoFilePath);
-
-}
-void Window_Control_t::saveProject() {
-
-    QFile file(m_ProjectFolder + "/" + ProjectName + ".pDab");
-    if (!file.open(QFile::WriteOnly | QFile::Text)) {
-        return;
-    }
-
-    QXmlStreamWriter xmlWriter(&file);
-    xmlWriter.setAutoFormatting(true);
-    xmlWriter.writeStartDocument();
-    xmlWriter.writeStartElement("pDab");
-    xmlWriter.writeTextElement("projectName", ProjectName);
-    xmlWriter.writeTextElement("projectFolder", m_ProjectFolder);
-
-    xmlWriter.writeStartElement("videoFilePath");
-    /*xmlWriter.writeAttribute("isCopy", QString::number(copyVideo));
-    if (copyVideo) {
-        QFileInfo info(m_videoPath);
-        xmlWriter.writeCharacters(info.fileName());
-    }
-    else {*/
-        xmlWriter.writeCharacters(VideoFilePath);
-    //}
-    xmlWriter.writeEndElement();
-
-    qDebug() << "save";
-    foreach (auto map, Window_Editor_Ptr->MapTimeRecord) {
-        qDebug() << "save22";
-        foreach(Record *item, map) {
-            xmlWriter.writeStartElement("record");
-            xmlWriter.writeAttribute("id", QString::number(item->Id()));
-            xmlWriter.writeTextElement("recordName", item->Name());
-            xmlWriter.writeTextElement("startTime", QString::number(item->StartTime()));
-            //xmlWriter.writeTextElement("color", value.color);
-            //xmlWriter.writeTextElement("row", QString::number(value.row));
-            xmlWriter.writeTextElement("endTime", QString::number(item->EndTime()));
-            xmlWriter.writeTextElement("rowPosition", QString::number(item->RowPosition()));
-            xmlWriter.writeEndElement();
-        }
-    }
-
-    xmlWriter.writeEndElement();
-
-    xmlWriter.writeEndDocument();
-    /*
-    listOfRecordsSave.clear();
-    foreach (int i, listOfRecords.keys()) {
-        listOfRecordsSave.insert(i, listOfRecords[i]);
-    }
-    */
-    file.close();
-    if (file.error()) {
-        return;
-    }
-
-}
-void Window_Control_t::exportProject() {
-    QString tmpr = m_ProjectFolder + "/output.mp3";
-    try {
-        Window_Editor_Ptr->m_ffmpeg->exportProject(Window_Editor_Ptr->MapTimeRecord, m_RecordPath + "/", tmpr, VideoFilePath, 0, Window_Video_Ptr->videoDuration(), FfmpegExportComponents::AUDIO);
-    }
-    catch (FfmpegException_t &e) {
-        qDebug() << "Export error: " << e.what();
-    }
-
-    catch (...) {
-        qDebug() << "fail";
-    }
-}
 

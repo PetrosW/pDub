@@ -1,16 +1,14 @@
 #include <windows/video_window.hpp>
 
-Window_Video_t::Window_Video_t(Window_Control_t *Window_Control, QWidget *Window_Control_QWidget)
-    : QWidget(Window_Control_QWidget),
-      Window_Control_Ptr(Window_Control),
-      Window_Editor_Ptr(nullptr)
+Window_Video_t::Window_Video_t(QWidget *parent) : QWidget(parent), Window_Control_Ptr(nullptr), Window_Editor_Ptr(nullptr)
 {
     QtAV::Widgets::registerRenderers();
-    setWindowFlags(Qt::Window | Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowMaximizeButtonHint);
-    setWindowTitle("Video");
+    //setWindowFlags(Qt::Window | Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowMaximizeButtonHint);
+    //setWindowTitle("Video");
 
+    qDebug() << "video pre";
 
-    Layout = new QGridLayout(this);
+    Layout = new QGridLayout();
     setLayout(Layout);
 
     VideoOutput = new QtAV::VideoOutput(this);
@@ -20,9 +18,9 @@ Window_Video_t::Window_Video_t(Window_Control_t *Window_Control, QWidget *Window
     }
     Player = new QtAV::AVPlayer(this);
     Player->setRenderer(VideoOutput);
-    Player->audio()->setVolume(0.8);
 
     connect(Player, &QtAV::AVPlayer::started, this, &Window_Video_t::playInit);
+    //connect(Player, &QtAV::AVPlayer::seekFinished, this, &Window_Video_t::pauseOnFirstSeekPlay);
     //connect(Player, SIGNAL(seekFinished(qint64)), this, SLOT(onSeekFinished(qint64)));
     Layout->addWidget(VideoOutput->widget(), 0, 0);
 
@@ -30,7 +28,7 @@ Window_Video_t::Window_Video_t(Window_Control_t *Window_Control, QWidget *Window
     isPlayingSliderPress = false;
     isPlaying = false;
 
-    show();
+
 }
 
 void Window_Video_t::setWindowEditorPtr(Window_Editor_t *Window_Editor)
@@ -38,10 +36,9 @@ void Window_Video_t::setWindowEditorPtr(Window_Editor_t *Window_Editor)
     Window_Editor_Ptr = Window_Editor;
 }
 
-void Window_Video_t::firstPlay(QString FileName) {
-    m_FileName = FileName;
-    ButtonPlay->setEnabled(true);
-    Player->play(FileName);
+void Window_Video_t::setWindowControlPtr(Window_Control_t *Window_Control)
+{
+    Window_Control_Ptr = Window_Control;
 }
 
 void Window_Video_t::createUi() {
@@ -49,16 +46,26 @@ void Window_Video_t::createUi() {
     SliderVideoTime = new QSlider(Qt::Horizontal, this);
     SliderVideoTime->setMinimum(0);
 
+    qDebug() << "video 1";
+
     SliderVideoTime->setTickInterval(1);
     connect(SliderVideoTime, &QSlider::sliderMoved, this, &Window_Video_t::updateVideoTimePositionSliderMove);
+    qDebug() << "video 2";
     connect(SliderVideoTime, &QSlider::sliderReleased, this, &Window_Video_t::signalVideoTimePositionSliderMove);
+    qDebug() << "video 3";
     connect(SliderVideoTime, &QSlider::sliderReleased, this, &Window_Video_t::sliderPressRelease);
+    qDebug() << "video 4";
     connect(SliderVideoTime, &QSlider::sliderPressed, this, &Window_Video_t::sliderPressRelease);
+    qDebug() << "video 5";
     connect(Player, &QtAV::AVPlayer::positionChanged, this, &Window_Video_t::updateSilderTimeValue);
+    qDebug() << "video 6";
     connect(Player, &QtAV::AVPlayer::positionChanged, this, &Window_Video_t::positionVideoChanged);
+    qDebug() << "video 7";
     connect(Player, &QtAV::AVPlayer::stopped, Window_Control_Ptr, &Window_Control_t::videoStopEnd);
+    qDebug() << "video 8";
     connect(Player, &QtAV::AVPlayer::stopped, this, &Window_Video_t::videoStopEnd);
 
+    qDebug() << "video 9";
 
     Layout->addWidget(SliderVideoTime, 1, 0);
 
@@ -96,6 +103,22 @@ void Window_Video_t::createUi() {
     connect(SliderVideoVolume, SIGNAL(valueChanged(int)), this, SLOT(setVolume(int)));
     LayoutVideoControl->addWidget(SliderVideoVolume, 0, 4);
 
+    m_preview = new QtAV::VideoPreviewWidget(this);
+    //m_preview->setWindowFlags(m_preview->windowFlags() |Qt::FramelessWindowHint|Qt::WindowStaysOnTopHint);
+    m_preview->resize(200, 200);
+    Layout->addWidget(m_preview, 0, 0);
+
+}
+
+void Window_Video_t::firstPlay(QString FileName) {
+    m_FileName = FileName;
+    ButtonPlay->setEnabled(true);
+    Player->audio()->setVolume(SliderVideoVolume->value()/100.0);
+
+    //Player->setAsyncLoad(false);
+    Player->setSeekType(QtAV::AccurateSeek);
+    //Player->setStartPosition(5000);
+    Player->play(FileName);
 }
 
 int Window_Video_t::getPlayerPosition() {
@@ -119,6 +142,7 @@ void Window_Video_t::play() {
     isPlayingSliderPress = true;
     isPlaying = true;
     Window_Editor_Ptr->videoPausePlayFromVideo(false);
+    m_preview->hide();
 }
 
 void Window_Video_t::pause() {
@@ -140,24 +164,30 @@ void Window_Video_t::updateVideoPositionEditorSlider(uint32_t pos) {
 }
 
 void Window_Video_t::setMute(bool mute){
-    Player->setMute(mute);
+    //Player->setMute(mute);
 }
 
 // private slots
 void Window_Video_t::playInit() {
+    Player->pause(true);
+
+
+    m_preview->setFile(m_FileName);
+    m_preview->setTimestamp(100);
+    m_preview->preview();
+    m_preview->show();
+
     SliderVideoTime->setMaximum(Player->duration());
     Window_Editor_Ptr->setAfterVideoLoad(Player->duration());
-    //Player->setBufferMode(QtAV::BufferTime);
-    //120000000 = 120 MB
-    //Player->setBufferValue(60000);
-    Player->setSeekType(QtAV::AccurateSeek);
-    while (!Player->isPlaying() || !Player->isPaused()) {
-        if (Player->isPlaying()) {
-            Player->setPosition(qint64(0));
-            Player->pause(true);
-            Player->setSeekType(QtAV::AccurateSeek);
-        }
-    }
+}
+
+void Window_Video_t::pauseOnFirstSeekPlay() {
+    qDebug() << "pause2";
+    Player->pause(true);
+    qDebug() << "pause  " << Player->isPlaying();
+    SliderVideoTime->setMaximum(Player->duration());
+    Window_Editor_Ptr->setAfterVideoLoad(Player->duration());
+    disconnect(Player, &QtAV::AVPlayer::seekFinished, this, &Window_Video_t::pauseOnFirstSeekPlay);
 }
 
 void Window_Video_t::setVolume(int newVolume) {

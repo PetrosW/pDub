@@ -1,27 +1,26 @@
 #include <windows/editor_window.hpp>
 
-Window_Editor_t::Window_Editor_t(Window_Control_t *Window_Control, QWidget *Window_Control_QWidget)
-    : QWidget(Window_Control_QWidget),
-      Window_Control_Ptr(Window_Control),
-      Window_Video_Ptr(nullptr)
+Window_Editor_t::Window_Editor_t(QWidget *parent) : QWidget(parent), Window_Control_Ptr(nullptr), Window_Video_Ptr(nullptr)
 {
-    setWindowFlags(Qt::Window | Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowMaximizeButtonHint);
-    setWindowTitle("Editor");
+    //setWindowFlags(Qt::Window | Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowMaximizeButtonHint);
+    //setWindowTitle("Editor");
 
     QtAV::AVPlayer *recordPlayer = new QtAV::AVPlayer(this);
     VectorMediaPlayer.append(recordPlayer);
 
-    Layout = new QGridLayout(this);
+    qDebug() << "editor pre";
+
+    Layout = new QGridLayout();
     setLayout(Layout);
     Layout->setVerticalSpacing(0);
 
-    ControlLayout = new QGridLayout(this);
+    ControlLayout = new QGridLayout();
     ControlLayout->setVerticalSpacing(5);
     Layout->addLayout(ControlLayout, 0, 0, 2, 1);
     Layout->setColumnMinimumWidth(0, 200);
     Layout->setColumnStretch(0, 1);
 
-    show();
+    qDebug() << "editor po";
 
     TimerNextPlayRecord = new QTimer(this);
     TimerNextPlayRecord->setSingleShot(true);
@@ -35,9 +34,14 @@ Window_Editor_t::Window_Editor_t(Window_Control_t *Window_Control, QWidget *Wind
 
 }
 
+void Window_Editor_t::setWindowControlPtr(Window_Control_t *Window_Control)
+{
+    this->Window_Control_Ptr = Window_Control;
+}
+
 void Window_Editor_t::setWindowVideoPtr(Window_Video_t *Window_Video)
 {
-    Window_Video_Ptr = Window_Video;
+    this->Window_Video_Ptr = Window_Video;
 
 }
 
