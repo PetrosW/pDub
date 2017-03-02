@@ -13,6 +13,7 @@
 #include <windows/main_window.hpp>
 #include <dialogs/newproject_dialog.hpp>
 #include <ffmpeg/ffmpeg.hpp>
+#include <audio_playback/audio_playback.hpp>
 
 class Window_Control_t : public QWidget
 {
@@ -45,12 +46,13 @@ class Window_Control_t : public QWidget
         QPushButton *ButtonDockWindowVideo;
 
         void createUi();
+        void createAudioEngine(QMap<quint32, QMap<quint32, Record *> > *Records_Map);
+        void updateAudioEngine();
+        void releaseAudioResources();
 
     private:
         Window_Editor_t *Window_Editor_Ptr;
         Window_Video_t *Window_Video_Ptr;
-
-
 
         QWidget *MainWidget;
         QGridLayout *Layout;
@@ -58,14 +60,13 @@ class Window_Control_t : public QWidget
 
         void newMicrophone();
 
-
         QString m_ProjectName;
         QString m_VideoFilePath;
         QString m_ProjectFolder;
         QString TmpPath;
         QString m_RecordPath;
 
-
+        AudioPlayback_t *AudioPlayback;
 
     signals:
         void ProjectFolderChanged();

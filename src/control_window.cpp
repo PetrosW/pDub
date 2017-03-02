@@ -2,12 +2,7 @@
 
 Window_Control_t::Window_Control_t(QWidget *parent) : QWidget(parent), Window_Editor_Ptr(nullptr), Window_Video_Ptr(nullptr)
 {
-
     NextRecordId = 0;
-    setWindowFlags(Qt::Tool);
-    //nahození za jízdy, čili za show funguje
-    /*QPushButton *button = new QPushButton("Hello");
-    layout->addWidget(button);*/
 }
 
 //public
@@ -53,6 +48,24 @@ void Window_Control_t::createUi() {
 
 }
 
+void Window_Control_t::createAudioEngine(QMap<quint32, QMap<quint32, Record *> > *Records_Map)
+{
+    AudioPlayback = new AudioPlayback_t(Records_Map, RecordPath(), this);
+    AudioPlayback->init();
+    AudioPlayback->planUpdate();
+    //connect(StartButton, &QPushButton::clicked, AudioPlayback, &AudioPlayback_t::start);
+    //connect(StopButton, &QPushButton::clicked, AudioPlayback, &AudioPlayback_t::stop);
+}
+
+void Window_Control_t::updateAudioEngine()
+{
+    AudioPlayback->planUpdate();
+}
+
+void Window_Control_t::releaseAudioResources()
+{
+    AudioPlayback->planClear();
+}
 
 //public slots
 

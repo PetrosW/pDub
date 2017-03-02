@@ -139,8 +139,8 @@ void Window_Editor_t::createUi() {
     connect(SliderEditorControl, &SliderEditor::sliderLinePositionChanged, this, &Window_Editor_t::setSliderLinePosition);
     connect(WidgetRecordWorkPlace, &RecordWorkplace::sliderPositionChanged, this, &Window_Editor_t::setSliderLinePosition);
     connect(WidgetRecordWorkPlace, &RecordWorkplace::sliderPositionChanged, SliderEditorControl, &SliderEditor::setSliderLinePosition);
-    connect(Window_Video_Ptr, &Window_Video_t::signalVideoTimePositionSliderMove, this, &Window_Editor_t::updateRecordPlayer);
-    connect(CheckBoxMuteRecords, &QCheckBox::stateChanged, this, &Window_Editor_t::updateRecordPlayer);
+    //connect(Window_Video_Ptr, &Window_Video_t::signalVideoTimePositionSliderMove, this, &Window_Editor_t::updateRecordPlayer);
+    //connect(CheckBoxMuteRecords, &QCheckBox::stateChanged, this, &Window_Editor_t::updateRecordPlayer);
     connect(ButtonSplit, &QPushButton::clicked, this, &Window_Editor_t::splitRecord);
     connect(ButtonDelete, &QPushButton::clicked, this, &Window_Editor_t::deleteRecord);
 
@@ -308,20 +308,10 @@ void Window_Editor_t::updateRecordPlayerTimer() {
 
 void Window_Editor_t::splitRecord() {
     Record *splitRec;
-//    foreach (auto map, MapTimeRecord) {
-//        if (map.contains(SelectedRecordId)) {
-//            splitRec = map[SelectedRecordId];
-//            uint32_t pos = (SliderLine->x()*100) - splitRec->StartTime();
-//            m_ffmpeg->splitTrack(splitRec,Window_Control_Ptr->RecordPath(),Window_Control_Ptr->NextRecordId,pos);
-//            addNewRecordObject(Window_Control_Ptr->NextRecordId, splitRec->StartTime(), 0, "record"+QString::number(Window_Control_Ptr->NextRecordId)+".wav");
-//            addNewRecordObject(Window_Control_Ptr->NextRecordId, splitRec->StartTime()+pos+1, 0, "record"+QString::number(Window_Control_Ptr->NextRecordId)+".wav");
-//            SelectedRecordId = Window_Control_Ptr->NextRecordId;
-//            map.remove(SelectedRecordId);
-//            delete splitRec;
-//            break;
-//        }
-//    }
 
+    Window_Control_Ptr->releaseAudioResources();
+
+    // TODO: upravit !
     for (auto it = MapTimeRecord.begin(); it != MapTimeRecord.end();) {
         if (it.value().contains(SelectedRecordId)) {
             splitRec = it.value()[SelectedRecordId];
@@ -349,10 +339,12 @@ void Window_Editor_t::splitRecord() {
             qDebug() << item->Name();
         }
     }
-
+    Window_Control_Ptr->updateAudioEngine();
 }
 
 void Window_Editor_t::deleteRecord() {
+
+    Window_Control_Ptr->releaseAudioResources();
 
     for (auto it = MapTimeRecord.begin(); it != MapTimeRecord.end();) {
         if (it.value().contains(SelectedRecordId)) {
@@ -375,6 +367,8 @@ void Window_Editor_t::deleteRecord() {
             qDebug() << item->Name();
         }
     }
+
+    Window_Control_Ptr->updateAudioEngine();
 }
 
 //protected
@@ -421,6 +415,7 @@ void Window_Editor_t::addNewRecordObject(uint32_t RecordId, uint32_t StartTime, 
     connect(record, &Record::onMousePress, this, &Window_Editor_t::recordSelected);
 
     Window_Control_Ptr->NextRecordId++;
+    Window_Control_Ptr->updateAudioEngine();
 
 }
 

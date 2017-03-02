@@ -43,6 +43,8 @@ Window_Main_t::Window_Main_t(QWidget *Parent_Ptr) : QMainWindow(Parent_Ptr), Lay
     Window_Control_Ptr->setDeafaultMicrophone();
     qDebug() << "microfon po";
 
+    Window_Control_Ptr->createAudioEngine(&Window_Editor_Ptr->MapTimeRecord);
+
     connect(Window_Control_Ptr->ButtonDockWindowVideo, &QPushButton::clicked, this, &Window_Main_t::dockingChange);
 
     show();
@@ -220,6 +222,7 @@ void Window_Main_t::loadProject() {
     file.close();
     qDebug() << "NextRecordId " << Window_Control_Ptr->NextRecordId;
     Window_Video_Ptr->firstPlay(VideoFilePath);
+    Window_Control_Ptr->updateAudioEngine();
 
 }
 void Window_Main_t::saveProject() {

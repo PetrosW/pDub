@@ -31,6 +31,8 @@ HEADERS = include/common.hpp \
           include/dialogs/newproject_dialog.hpp \
           include/slider_editor.hpp \
           include/record_workplace.hpp \
+          include/audio_playback/audio_playback.hpp \
+          include/audio_playback/mixing_device.hpp \
           qcustomplot-source/qcustomplot.h
 
 
@@ -49,5 +51,7 @@ SOURCES = src/main.cpp \
           src/newproject_dialog.cpp \
           src/slider_editor.cpp \
           src/record_workplace.cpp \
+          src/audio_playback.cpp \
+          src/mixing_device.cpp \
           qcustomplot-source/qcustomplot.cpp
 

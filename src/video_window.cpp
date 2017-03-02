@@ -141,7 +141,7 @@ void Window_Video_t::play() {
     Player->pause(false);
     isPlayingSliderPress = true;
     isPlaying = true;
-    Window_Editor_Ptr->videoPausePlayFromVideo(false);
+    //Window_Editor_Ptr->videoPausePlayFromVideo(false);
     m_preview->hide();
 }
 
@@ -152,7 +152,7 @@ void Window_Video_t::pause() {
     Player->pause(true);
     isPlayingSliderPress = false;
     isPlaying = false;
-    Window_Editor_Ptr->videoPausePlayFromVideo(true);
+    //Window_Editor_Ptr->videoPausePlayFromVideo(true);
 }
 
 void Window_Video_t::updateVideoPositionEditorSlider(uint32_t pos) {

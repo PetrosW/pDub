@@ -36,8 +36,6 @@ class Window_Editor_t : public QWidget
         void setAfterVideoLoad(qint64 duration);
         void createUi();
 
-
-
     private:
 
         QWidget *MainWidget;
@@ -84,8 +82,6 @@ class Window_Editor_t : public QWidget
         QLabel *LabelVideoTime;
         QLabel *LabelRecordStartTime;
         QLabel *LabelRecordEndTime;
-
-
 
     protected:
         void paintEvent(QPaintEvent *);
