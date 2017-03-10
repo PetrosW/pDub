@@ -25,7 +25,7 @@ class AudioPlayback_t : public QObject
         MixingDevice_t MixingDevice;
 
     public slots:
-        void start();
+        void play();
         void pause();
         void seek(quint64 Miliseconds);
 

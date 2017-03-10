@@ -48,7 +48,7 @@ void AudioPlayback_t::initStartComplete()
     //QTimer::singleShot(0, [this]{AudioOutput->reset();qDebug() << AudioOutput->state();});
 }
 
-void AudioPlayback_t::start()
+void AudioPlayback_t::play()
 {
     if (AudioOutput->state() == QAudio::SuspendedState) AudioOutput->resume();
     else if (AudioOutput->state() == QAudio::StoppedState) AudioOutput->start(&MixingDevice);
@@ -61,8 +61,12 @@ void AudioPlayback_t::pause()
 
 void AudioPlayback_t::seek(quint64 Miliseconds)
 {
+    auto CurrentState = AudioOutput->state();
+    
     AudioOutput->reset();
     MixingDevice.seek(Miliseconds);
+    
+    if (CurrentState == QAudio::ActiveState) play();
 }
 
 void AudioPlayback_t::changeFilePath(QString &FilePath)
