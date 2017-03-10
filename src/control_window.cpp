@@ -43,7 +43,8 @@ void Window_Control_t::createUi() {
     //ControlLayout->setSizeConstraint(QLayout::SetMinAndMaxSize);
     Layout->addLayout(ControlLayout, 0, 0);
 
-    ButtonDockWindowVideo = new QPushButton(this);
+    ButtonDockWindowVideo = new QPushButton("UnDock Video", this);
+    ButtonDockWindowVideo->setMaximumWidth(200);
     ControlLayout->addWidget(ButtonDockWindowVideo, 0, 0);
 
 }

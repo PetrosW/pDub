@@ -2,7 +2,6 @@
 
 SliderEditor::SliderEditor(QWidget *parent) : QWidget(parent)
 {
-
     SliderClickArea = new QWidget(this);
     SliderClickArea->setGeometry(-5, 0, 11, 10);
     QPalette Pal(palette());
@@ -16,8 +15,6 @@ SliderEditor::SliderEditor(QWidget *parent) : QWidget(parent)
     SliderLine->setPalette(Pal);
 
     isPressedSliderClickArea = false;
-
-    //connect(sliderClickArea, &QWidget::)
 }
 
 // private slots

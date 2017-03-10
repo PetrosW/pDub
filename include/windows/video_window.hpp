@@ -49,12 +49,14 @@ class Window_Video_t : public QWidget
 
         QPushButton *ButtonDockWindowVideo;
 
-        bool isPlayingSliderPress; // pomocna pro urcovani pausi pred kliknutim na slider
+        bool isPlayingSliderPress; // pomocna pro urcovani pauzi pred kliknutim na slider
         bool isPlaying;
 
     signals:
         void positionVideoChanged(qint64 pos);
         void signalVideoTimePositionSliderMove();
+        void signalVideoPlay();
+        void signalVideoPause();
 
     public slots:
         void play();
@@ -73,7 +75,6 @@ class Window_Video_t : public QWidget
         void updateVideoTimePositionSliderPressed();
         void sliderPressRelease();
         void videoStopEnd();
-        void pauseOnFirstSeekPlay();
 };
 
 #endif

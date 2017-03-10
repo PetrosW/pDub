@@ -41,7 +41,6 @@ class Microphone : public QWidget
         void createUi();
 
     public slots:
-
         void videoStopEnd();
 
     private slots:

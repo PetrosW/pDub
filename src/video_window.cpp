@@ -20,8 +20,6 @@ Window_Video_t::Window_Video_t(QWidget *parent) : QWidget(parent), Window_Contro
     Player->setRenderer(VideoOutput);
 
     connect(Player, &QtAV::AVPlayer::started, this, &Window_Video_t::playInit);
-    //connect(Player, &QtAV::AVPlayer::seekFinished, this, &Window_Video_t::pauseOnFirstSeekPlay);
-    //connect(Player, SIGNAL(seekFinished(qint64)), this, SLOT(onSeekFinished(qint64)));
     Layout->addWidget(VideoOutput->widget(), 0, 0);
 
     sliderEditorSeek = false;
@@ -84,7 +82,8 @@ void Window_Video_t::createUi() {
     LayoutVideoControl->addWidget(ButtonSeekBackward, 0, 1);
 
     ButtonPlay = new QPushButton("Play", this);
-    connect(ButtonPlay, SIGNAL(clicked()), this, SLOT(play()));
+    connect(ButtonPlay, &QPushButton::clicked, this, &Window_Video_t::play);
+    connect(ButtonPlay, &QPushButton::clicked, this, &Window_Video_t::signalVideoPlay);
     //connect(ButtonPlay, &QPushButton::clicked, Window_Editor_Ptr, &Window_Editor_t::videoPausePlayFromVideo);
     ButtonPlay->setEnabled(false);
     LayoutVideoControl->addWidget(ButtonPlay, 0, 2);
@@ -136,8 +135,11 @@ uint32_t Window_Video_t::videoDuration() {
 // public slots
 void Window_Video_t::play() {
     ButtonPlay->setText("Pause");
-    disconnect(ButtonPlay, SIGNAL(clicked()), this, SLOT(play()));
-    connect(ButtonPlay, SIGNAL(clicked()), this, SLOT(pause()));
+    disconnect(ButtonPlay, &QPushButton::clicked, this, &Window_Video_t::play);
+    connect(ButtonPlay,&QPushButton::clicked, this, &Window_Video_t::pause);
+    disconnect(ButtonPlay, &QPushButton::clicked, this, &Window_Video_t::signalVideoPlay);
+    connect(ButtonPlay, &QPushButton::clicked, this, &Window_Video_t::signalVideoPause);
+
     Player->pause(false);
     isPlayingSliderPress = true;
     isPlaying = true;
@@ -147,8 +149,11 @@ void Window_Video_t::play() {
 
 void Window_Video_t::pause() {
     ButtonPlay->setText("Play");
-    disconnect(ButtonPlay, SIGNAL(clicked()), this, SLOT(pause()));
-    connect(ButtonPlay, SIGNAL(clicked()), this, SLOT(play()));
+    disconnect(ButtonPlay, &QPushButton::clicked, this, &Window_Video_t::pause);
+    connect(ButtonPlay,&QPushButton::clicked, this, &Window_Video_t::play);
+    disconnect(ButtonPlay, &QPushButton::clicked, this, &Window_Video_t::signalVideoPause);
+    connect(ButtonPlay, &QPushButton::clicked, this, &Window_Video_t::signalVideoPlay);
+
     Player->pause(true);
     isPlayingSliderPress = false;
     isPlaying = false;
@@ -179,15 +184,6 @@ void Window_Video_t::playInit() {
 
     SliderVideoTime->setMaximum(Player->duration());
     Window_Editor_Ptr->setAfterVideoLoad(Player->duration());
-}
-
-void Window_Video_t::pauseOnFirstSeekPlay() {
-    qDebug() << "pause2";
-    Player->pause(true);
-    qDebug() << "pause  " << Player->isPlaying();
-    SliderVideoTime->setMaximum(Player->duration());
-    Window_Editor_Ptr->setAfterVideoLoad(Player->duration());
-    disconnect(Player, &QtAV::AVPlayer::seekFinished, this, &Window_Video_t::pauseOnFirstSeekPlay);
 }
 
 void Window_Video_t::setVolume(int newVolume) {
@@ -230,7 +226,6 @@ void Window_Video_t::sliderPressRelease() {
             qDebug() << "checkuju";
         }
         isPlaying = Player->isPaused();
-        Window_Editor_Ptr->videoPausePlayFromVideo(isPlaying);
     }
 }
 

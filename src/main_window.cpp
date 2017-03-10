@@ -6,18 +6,28 @@ Window_Main_t::Window_Main_t(QWidget *Parent_Ptr) : QMainWindow(Parent_Ptr), Lay
     QWidget *CentralWidget = new QWidget();
     setCentralWidget(CentralWidget);
 
-    qDebug() << "main pre";
 
     Layout_Vertical->setParent(CentralWidget);
     CentralWidget->setLayout(Layout_Vertical);
     Layout_Vertical->addLayout(Layout_Horizontal);
 
     // pohrat si s velikosti
-    Window_Video_Ptr->setMinimumSize(QSize(640, 480));
+    Window_Video_Ptr->setMinimumSize(QSize(320, 180));
+
+
+    QScreen *Screen = QGuiApplication::primaryScreen();
+    QSize AvSize = Screen->availableSize();
+    qDebug() << AvSize.width();
+    qDebug() << AvSize.height();
+    this->resize(AvSize.width()*0.90, AvSize.height()*0.90);
+    qDebug() << this->frameGeometry().height();
+    qDebug() << this->frameGeometry().width();
 
     Layout_Horizontal->addWidget(Window_Control_Ptr);
     Layout_Horizontal->addWidget(Window_Video_Ptr);
     Layout_Vertical->addWidget(Window_Editor_Ptr);
+    Layout_Vertical->setStretch(0, 40);
+    Layout_Vertical->setStretch(1, 60);
 
     Window_Control_Ptr->setWindowVideoPtr(Window_Video_Ptr);
     Window_Control_Ptr->setWindowEditorPtr(Window_Editor_Ptr);
@@ -28,20 +38,15 @@ Window_Main_t::Window_Main_t(QWidget *Parent_Ptr) : QMainWindow(Parent_Ptr), Lay
     Window_Editor_Ptr->setWindowControlPtr(Window_Control_Ptr);
     Window_Editor_Ptr->setWindowVideoPtr(Window_Video_Ptr);
 
-    qDebug() << "main po";
 
     setWindowTitle("pDub");
     createToolBar();
 
     Window_Video_Ptr->createUi();
-
     Window_Control_Ptr->createUi();
-
     Window_Editor_Ptr->createUi();
 
-    qDebug() << "microfon pre";
     Window_Control_Ptr->setDeafaultMicrophone();
-    qDebug() << "microfon po";
 
     Window_Control_Ptr->createAudioEngine(&Window_Editor_Ptr->MapTimeRecord);
 
@@ -92,7 +97,7 @@ void Window_Main_t::dockingChange()
     if (IsDocked)
     {
         //Layout_Horizontal->removeWidget(Window_Video_Ptr);
-
+        Window_Control_Ptr->ButtonDockWindowVideo->setText("Dock Video");
         Window_Video_Ptr->setParent(nullptr);
         Window_Video_Ptr->setWindowFlags(Qt::Tool | Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowStaysOnTopHint);
         Window_Video_Ptr->show();
@@ -101,6 +106,7 @@ void Window_Main_t::dockingChange()
     {
         Window_Video_Ptr->setParent(this);
         Layout_Horizontal->addWidget(Window_Video_Ptr);
+        Window_Control_Ptr->ButtonDockWindowVideo->setText("UnDock Video");
     }
 
     IsDocked = !IsDocked;
@@ -117,7 +123,7 @@ void Window_Main_t::closeEvent(QCloseEvent *event)
 void Window_Main_t::newProject(QString projectName, QString videoFilePath, QString projectFolder) {
     Window_Control_Ptr->setProjectFolder(projectFolder);
     Window_Control_Ptr->setRecordPath(projectFolder + "/records");
-    Window_Control_Ptr->setProjectFolder(projectFolder);
+    Window_Control_Ptr->setProjectName(projectName);
     Window_Control_Ptr->setVideoFilePath(videoFilePath);
 
     QDir().mkdir(projectFolder);
@@ -141,7 +147,6 @@ void Window_Main_t::newProjectDialog() {
 
 
 void Window_Main_t::loadProject() {
-
     QString projectFile = QFileDialog::getOpenFileName(this, tr("Open a pDab project"),"", tr("pDab files (*.pDab)"));
     if (projectFile.isEmpty()) {
         //LineEditSelectVideo->setText("Error");
@@ -150,7 +155,6 @@ void Window_Main_t::loadProject() {
 
     QFile file(projectFile);
     QFileInfo fileInfo(file);
-
     if (!file.open(QIODevice::ReadOnly | QFile::Text))
         return;
 
@@ -162,18 +166,17 @@ void Window_Main_t::loadProject() {
         map.clear();
     }
     Window_Editor_Ptr->MapTimeRecord.clear();
-
     //listOfRecords.clear(); // čištění při opětovném nahrávání
     QXmlStreamReader xmlReader(&file);
     xmlReader.readNextStartElement();  //start <pDab>
     xmlReader.readNextStartElement();  //<nameOfProject>
-    ProjectName = xmlReader.readElementText();
+    Window_Control_Ptr->setProjectName(xmlReader.readElementText());
     xmlReader.readNextStartElement();  //<projectPath>
     xmlReader.readElementText();
-    m_ProjectFolder = fileInfo.absolutePath();
+    Window_Control_Ptr->setProjectFolder(fileInfo.absolutePath());
 
-    m_RecordPath = m_ProjectFolder + "/records";
-    TmpPath = m_ProjectFolder + "/tmps";
+    Window_Control_Ptr->setRecordPath(Window_Control_Ptr->ProjectFolder() + "/records");
+    TmpPath = Window_Control_Ptr->ProjectFolder() + "/tmps";
 
     xmlReader.readNextStartElement();  //<videoPath>
     /*copyVideo = xmlReader.attributes().value("isCopy").toInt();
@@ -181,7 +184,7 @@ void Window_Main_t::loadProject() {
         m_videoPath = m_projectPath + "/" + xmlReader.readElementText();
     }
     else {*/
-        VideoFilePath = xmlReader.readElementText();
+        Window_Control_Ptr->setVideoFilePath(xmlReader.readElementText());
     //}
     xmlReader.readNextStartElement();  //první <record>
     uint32_t id; uint32_t startTime; uint32_t endTime; QString name; uint32_t rowPosition;
@@ -206,7 +209,6 @@ void Window_Main_t::loadProject() {
         rowPosition = xmlReader.readElementText().toUInt();
         xmlReader.readNextStartElement();
         xmlReader.readNextStartElement(); //nevím proč ale jinak to nejde
-
         Window_Editor_Ptr->addNewRecordObject(id, startTime, endTime, name, rowPosition);
         if (nextIdLoad <= id) {
             nextIdLoad = id + 1;
