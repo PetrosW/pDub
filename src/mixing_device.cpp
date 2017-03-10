@@ -143,3 +143,8 @@ void MixingDevice_t::planUpdate()
     for (auto Track = Records_Plan.begin(); Track != Records_Plan.end(); Track++) Track->WavFile.open(QIODevice::ReadOnly);
     seek(SamplePosition);
 }
+
+void MixingDevice_t::changeFilePath(QString &FilePath)
+{
+    this->FilePath = FilePath;
+}

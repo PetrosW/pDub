@@ -54,7 +54,7 @@ void AudioPlayback_t::start()
     else if (AudioOutput->state() == QAudio::StoppedState) AudioOutput->start(&MixingDevice);
 }
 
-void AudioPlayback_t::stop()
+void AudioPlayback_t::pause()
 {
     AudioOutput->suspend();
 }
@@ -63,4 +63,9 @@ void AudioPlayback_t::seek(quint64 Miliseconds)
 {
     AudioOutput->reset();
     MixingDevice.seek(Miliseconds);
+}
+
+void AudioPlayback_t::changeFilePath(QString &FilePath)
+{
+    MixingDevice.changeFilePath(FilePath);
 }

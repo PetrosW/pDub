@@ -33,6 +33,7 @@ class MixingDevice_t : public QIODevice
         void seek(quint64 Miliseconds);
         void planUpdate();
         void planClear();
+        void changeFilePath(QString &FilePath);
 
     protected:
         qint64 readData(char *Data, qint64 Maxlen);
