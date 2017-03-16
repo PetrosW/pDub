@@ -1,14 +1,14 @@
 #include <record.hpp>
 
 Record::Record(uint32_t id, uint32_t startTime, uint32_t endTime, QString name, uint32_t rowPosition, QWidget *parent) :
-    QWidget(parent), m_Id(id), m_StartTime(startTime), m_EndTime(endTime), m_Name(name), m_RowPosition(rowPosition)
+    m_Id(id), m_StartTime(startTime), m_EndTime(endTime), m_Name(name), m_RowPosition(rowPosition), QWidget(parent)
 {
-//    qDebug() << "record object";
-//    qDebug() << parent;
-//    qDebug() << m_Id;
-//    qDebug() << m_StartTime;
-//    qDebug() << m_EndTime;
-//    qDebug() << m_Name;
+    qDebug() << "record object";
+    qDebug() << parent;
+    qDebug() << m_Id;
+    qDebug() << m_StartTime;
+    qDebug() << m_EndTime;
+    qDebug() << m_Name;
 
 
     this->setGeometry(m_StartTime / 100, m_RowPosition * 50, (m_EndTime - m_StartTime) / 100, 50);

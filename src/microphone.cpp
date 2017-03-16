@@ -19,7 +19,7 @@ Microphone::Microphone(Window_Control_t *Window_Control_ptr, Window_Video_t *Win
 
     DurationTime = 0;
     TimerRecord = new QTimer(this);
-    connect(TimerRecord, SIGNAL(timeout()), this, SLOT(timerRecordTick()));
+    connect(TimerRecord, &QTimer::timeout, this, &Microphone::timerRecordTick);
 
     Layout = new QGridLayout();
     this->setMaximumWidth(200);
@@ -42,7 +42,7 @@ void Microphone::createUi() {
 
 
     ButtonRecord = new QPushButton("Record", this);
-    connect(ButtonRecord, SIGNAL(clicked()), this, SLOT(startRecord()));
+    connect(ButtonRecord, &QPushButton::clicked, this, &Microphone::startRecord);
     Layout->addWidget(ButtonRecord, 3, 0);
     ButtonPause = new QPushButton("Pause", this);
     ButtonPause->setEnabled(false);
@@ -67,28 +67,29 @@ void Microphone::startRecord() {
     Window_Video_Ptr->setMute(true);
     AudioRecorder->setOutputLocation(QUrl::fromLocalFile(Window_Control_Ptr->RecordPath() + "//" + "record" + QString::number(Window_Control_Ptr->NextRecordId) + ".wav"));
     AudioRecorder->record();
-
+    qDebug() << "startTimeMicro1: "<< StartTime;
     StartTime = Window_Video_Ptr->getPlayerPosition();
+    qDebug() << "startTimeMicro2: "<< StartTime;
     LabelStartTime->setText(QString("Start time: %1").arg(miliSecToTime(StartTime)));
     DurationTime = 0;
     TimerRecord->start(100);
     disconnect(ButtonRecord, &QPushButton::clicked, this, &Microphone::startRecord);
     connect(ButtonRecord, &QPushButton::clicked, this, &Microphone::stopRecord);
     ButtonRecord->setText("Stop");
-
 }
 
 void Microphone::stopRecord() {
     Window_Video_Ptr->setMute(false);
     AudioRecorder->stop();
+    EndTime = Window_Video_Ptr->getPlayerPosition();
     LabelEndTime->setText(QString("End time: %1").arg(miliSecToTime(EndTime)));
     TimerRecord->stop();
     LabelDurationTime->setText(QString("Duration time: %1").arg(miliSecToTime(EndTime - StartTime)));
     disconnect(ButtonRecord, &QPushButton::clicked, this, &Microphone::stopRecord);
     connect(ButtonRecord, &QPushButton::clicked, this, &Microphone::startRecord);
     ButtonRecord->setText("Record");
+    qDebug() << "startTimeMicro3: "<< StartTime;
     recordingEnd(Window_Control_Ptr->NextRecordId, StartTime, 0, "record" + QString::number(Window_Control_Ptr->NextRecordId) + ".wav", 500); //500 kvůli řadě
-
 }
 
 void Microphone::timerRecordTick() {

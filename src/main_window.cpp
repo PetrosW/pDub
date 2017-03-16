@@ -38,17 +38,16 @@ Window_Main_t::Window_Main_t(QWidget *Parent_Ptr) : QMainWindow(Parent_Ptr), Lay
     Window_Editor_Ptr->setWindowControlPtr(Window_Control_Ptr);
     Window_Editor_Ptr->setWindowVideoPtr(Window_Video_Ptr);
 
-
     setWindowTitle("pDub");
     createToolBar();
+
+    Window_Control_Ptr->createAudioEngine(&Window_Editor_Ptr->MapTimeRecord);
 
     Window_Video_Ptr->createUi();
     Window_Control_Ptr->createUi();
     Window_Editor_Ptr->createUi();
 
     Window_Control_Ptr->setDeafaultMicrophone();
-
-    Window_Control_Ptr->createAudioEngine(&Window_Editor_Ptr->MapTimeRecord);
 
     connect(Window_Control_Ptr->ButtonDockWindowVideo, &QPushButton::clicked, this, &Window_Main_t::dockingChange);
 
@@ -64,22 +63,22 @@ void Window_Main_t::createToolBar() {
     A_newProject = new QAction(tr("&New"), this);
     A_newProject->setShortcuts(QKeySequence::New);
     A_newProject->setToolTip(tr("Create a new project"));
-    connect(A_newProject, SIGNAL(triggered()), this, SLOT(newProjectDialog()));
+    connect(A_newProject, &QAction::triggered, this,  &Window_Main_t::newProjectDialog);
 
     A_loadProject = new QAction(tr("&Open"), this);
     A_loadProject->setShortcuts(QKeySequence::Open);
     A_loadProject->setToolTip(tr("O a old Project"));
-    connect(A_loadProject, SIGNAL(triggered()), this, SLOT(loadProject()));
+    connect(A_loadProject, &QAction::triggered, this, &Window_Main_t::loadProject);
 
     A_saveProject = new QAction(tr("&Save"), this);
     A_saveProject->setShortcuts(QKeySequence::Save);
     A_saveProject->setToolTip(tr("Save a project"));
-    connect(A_saveProject, SIGNAL(triggered()), this, SLOT(saveProject()));
+    connect(A_saveProject, &QAction::triggered, this, &Window_Main_t::saveProject);
 
     A_exportProject = new QAction(tr("&Export"), this);
     A_exportProject->setShortcut(tr("Ctrl+E"));
     A_exportProject->setToolTip(tr("Export a project"));
-    connect(A_exportProject, SIGNAL(triggered()), this, SLOT(exportProject()));
+    connect(A_exportProject, &QAction::triggered, this, &Window_Main_t::exportProject);
 
     MenuBar->addAction(A_newProject);
     MenuBar->addAction(A_loadProject);
@@ -141,7 +140,8 @@ void Window_Main_t::newProject(QString projectName, QString videoFilePath, QStri
 void Window_Main_t::newProjectDialog() {
     // get a path and a name of file
     newProject_dialog *NewProjectDialog = new newProject_dialog(this);
-    connect(NewProjectDialog, SIGNAL(accepted(QString, QString, QString)), this, SLOT(newProject(QString, QString, QString)));
+    connect(NewProjectDialog, &newProject_dialog::accepted, this, &Window_Main_t::newProject);
+//    connect(NewProjectDialog, SIGNAL(accepted(QString, QString, QString)), this, SLOT(newProject(QString, QString, QString)));
     NewProjectDialog->show();
 }
 
@@ -171,12 +171,14 @@ void Window_Main_t::loadProject() {
     xmlReader.readNextStartElement();  //start <pDab>
     xmlReader.readNextStartElement();  //<nameOfProject>
     Window_Control_Ptr->setProjectName(xmlReader.readElementText());
+    qDebug() << "ProjectName " << Window_Control_Ptr->ProjectName();
     xmlReader.readNextStartElement();  //<projectPath>
     xmlReader.readElementText();
     Window_Control_Ptr->setProjectFolder(fileInfo.absolutePath());
+    qDebug() << "ProjectFolder " << Window_Control_Ptr->ProjectFolder();
 
     Window_Control_Ptr->setRecordPath(Window_Control_Ptr->ProjectFolder() + "/records");
-    TmpPath = Window_Control_Ptr->ProjectFolder() + "/tmps";
+    Window_Control_Ptr->setTmpsPath(Window_Control_Ptr->ProjectFolder() + "/tmps");
 
     xmlReader.readNextStartElement();  //<videoPath>
     /*copyVideo = xmlReader.attributes().value("isCopy").toInt();
@@ -215,7 +217,7 @@ void Window_Main_t::loadProject() {
         }
     }
     Window_Control_Ptr->NextRecordId = nextIdLoad;
-    QDir().mkdir(m_RecordPath);
+    QDir().mkdir(Window_Control_Ptr->RecordPath());
 
     /*listOfRecordsSave.clear();
     foreach (int i, listOfRecords.keys()) {
@@ -223,13 +225,14 @@ void Window_Main_t::loadProject() {
     }*/
     file.close();
     qDebug() << "NextRecordId " << Window_Control_Ptr->NextRecordId;
-    Window_Video_Ptr->firstPlay(VideoFilePath);
-    Window_Control_Ptr->updateAudioEngine();
+    qDebug() << "VideoFilePath " << Window_Control_Ptr->VideoFilePath();
+    Window_Video_Ptr->firstPlay(Window_Control_Ptr->VideoFilePath());
+    //Window_Control_Ptr->updateAudioEngine();
 
 }
 void Window_Main_t::saveProject() {
 
-    QFile file(m_ProjectFolder + "/" + ProjectName + ".pDab");
+    QFile file(Window_Control_Ptr->ProjectFolder() + "/" + Window_Control_Ptr->ProjectName() + ".pDab");
     if (!file.open(QFile::WriteOnly | QFile::Text)) {
         return;
     }
@@ -238,8 +241,8 @@ void Window_Main_t::saveProject() {
     xmlWriter.setAutoFormatting(true);
     xmlWriter.writeStartDocument();
     xmlWriter.writeStartElement("pDab");
-    xmlWriter.writeTextElement("projectName", ProjectName);
-    xmlWriter.writeTextElement("projectFolder", m_ProjectFolder);
+    xmlWriter.writeTextElement("projectName", Window_Control_Ptr->ProjectName());
+    xmlWriter.writeTextElement("projectFolder", Window_Control_Ptr->ProjectFolder());
 
     xmlWriter.writeStartElement("videoFilePath");
     /*xmlWriter.writeAttribute("isCopy", QString::number(copyVideo));
@@ -248,7 +251,7 @@ void Window_Main_t::saveProject() {
         xmlWriter.writeCharacters(info.fileName());
     }
     else {*/
-        xmlWriter.writeCharacters(VideoFilePath);
+        xmlWriter.writeCharacters(Window_Control_Ptr->VideoFilePath());
     //}
     xmlWriter.writeEndElement();
 
@@ -284,9 +287,9 @@ void Window_Main_t::saveProject() {
 
 }
 void Window_Main_t::exportProject() {
-    QString tmpr = m_ProjectFolder + "/output.mp3";
+    QString tmpr = Window_Control_Ptr->ProjectFolder() + "/output.mp3";
     try {
-        Window_Editor_Ptr->m_ffmpeg->exportProject(Window_Editor_Ptr->MapTimeRecord, m_RecordPath + "/", tmpr, VideoFilePath, 0, Window_Video_Ptr->videoDuration(), FfmpegExportComponents::AUDIO);
+        Window_Editor_Ptr->m_ffmpeg->exportProject(Window_Editor_Ptr->MapTimeRecord, Window_Control_Ptr->RecordPath() + "/", tmpr, Window_Control_Ptr->VideoFilePath(), 0, Window_Video_Ptr->videoDuration(), FfmpegExportComponents::AUDIO);
     }
     catch (FfmpegException_t &e) {
         qDebug() << "Export error: " << e.what();

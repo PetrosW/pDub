@@ -114,7 +114,7 @@ void Window_Editor_t::createUi() {
     ButtonAddRow = new QPushButton("Test", WidgetWorkPlace);
     ButtonAddRow->resize(40,40);
     ButtonAddRow->move(20,200 + 10);
-    connect(ButtonAddRow, SIGNAL(pressed()), this, SLOT(addRow()));
+    connect(ButtonAddRow, &QPushButton::clicked, this, &Window_Editor_t::addRow);
 
     connect(ScrollBarWorkPlaceHorizontal, &QScrollBar::valueChanged, this, &Window_Editor_t::setScrollAreaEditorTimeSliderValue);
     connect(Window_Video_Ptr, &Window_Video_t::positionVideoChanged, SliderEditorControl, &SliderEditor::setSliderLinePositionFromVideo);
@@ -127,6 +127,9 @@ void Window_Editor_t::createUi() {
     //connect(CheckBoxMuteRecords, &QCheckBox::stateChanged, this, &Window_Editor_t::updateRecordPlayer);
     connect(ButtonSplit, &QPushButton::clicked, this, &Window_Editor_t::splitRecord);
     connect(ButtonDelete, &QPushButton::clicked, this, &Window_Editor_t::deleteRecord);
+
+//    connect(SliderEditorControl, &SliderEditor::sliderLinePositionChanged, Window_Control_Ptr->AudioPlayback, &AudioPlayback_t::seek);
+//    connect(WidgetRecordWorkPlace, &RecordWorkplace::sliderPositionChanged, Window_Control_Ptr->AudioPlayback, &AudioPlayback_t::seek);
 
     SliderEditorControl->show();
     WidgetWorkPlace->show();
@@ -161,6 +164,8 @@ void Window_Editor_t::relocateRecordInMap(uint32_t RecordID, uint32_t OldStartTi
     if (MapTimeRecord[OldStartTime].empty()) {
         MapTimeRecord.remove(OldStartTime);
     }
+
+    Window_Control_Ptr->updateAudioEngine();
 //    foreach (auto map, MapTimeRecord) {
 //        foreach(Record *item, map) {
 //            qDebug() << item->Id() << " : " << item->StartTime();
@@ -266,6 +271,7 @@ void Window_Editor_t::setAfterVideoLoad(qint64 duration) {
 //public slots
 
 void Window_Editor_t::addNewRecordObject(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name, uint32_t RowPosition) {
+    qDebug() << "startTime: "<< StartTime;
     EndTime = StartTime + (uint32_t)m_ffmpeg->getAudioDuration(Window_Control_Ptr->RecordPath() + "/" + Name);
     if (RowPosition == 500) {
         RowPosition = 0;

@@ -18,7 +18,7 @@ class AudioPlayback_t : public QObject
         void init();
         void planUpdate();
         void planClear();
-        void changeFilePath(QString &FilePath);
+        //void changeFilePath(QString &FilePath);
 
     private:
         QAudioOutput *AudioOutput;
@@ -28,6 +28,7 @@ class AudioPlayback_t : public QObject
         void play();
         void pause();
         void seek(quint64 Miliseconds);
+        void changeFilePath(QString &FilePath);
 
     private slots:
         void initStartComplete();

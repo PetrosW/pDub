@@ -50,22 +50,23 @@ void AudioPlayback_t::initStartComplete()
 
 void AudioPlayback_t::play()
 {
+    qDebug() << "playyyyyyyyy";
     if (AudioOutput->state() == QAudio::SuspendedState) AudioOutput->resume();
     else if (AudioOutput->state() == QAudio::StoppedState) AudioOutput->start(&MixingDevice);
 }
 
 void AudioPlayback_t::pause()
 {
+    qDebug() << "pauuuuuuuuuuuuuse";
     AudioOutput->suspend();
 }
 
 void AudioPlayback_t::seek(quint64 Miliseconds)
 {
+    qDebug() << "seeeeeeeeeek";
     auto CurrentState = AudioOutput->state();
-    
     AudioOutput->reset();
     MixingDevice.seek(Miliseconds);
-    
     if (CurrentState == QAudio::ActiveState) play();
 }
 

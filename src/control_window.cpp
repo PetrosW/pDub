@@ -54,8 +54,14 @@ void Window_Control_t::createAudioEngine(QMap<quint32, QMap<quint32, Record *> >
     AudioPlayback = new AudioPlayback_t(Records_Map, RecordPath(), this);
     AudioPlayback->init();
     AudioPlayback->planUpdate();
-    //connect(StartButton, &QPushButton::clicked, AudioPlayback, &AudioPlayback_t::start);
-    //connect(StopButton, &QPushButton::clicked, AudioPlayback, &AudioPlayback_t::stop);
+    connect(Window_Video_Ptr, &Window_Video_t::signalVideoPlay, AudioPlayback, &AudioPlayback_t::play);
+    connect(Window_Video_Ptr, &Window_Video_t::signalVideoPause, AudioPlayback, &AudioPlayback_t::pause);
+    connect(Window_Video_Ptr, &Window_Video_t::signalSeekFinished, AudioPlayback, &AudioPlayback_t::seek);
+    connect(this, &Window_Control_t::RecordPathChanged, this, &Window_Control_t::updateAudioEngineFilePath);
+}
+
+void Window_Control_t::updateAudioEngineFilePath(){
+    AudioPlayback->changeFilePath(RecordPath());
 }
 
 void Window_Control_t::updateAudioEngine()

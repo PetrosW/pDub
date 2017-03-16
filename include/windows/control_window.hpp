@@ -23,6 +23,7 @@ class Window_Control_t : public QWidget
     Q_PROPERTY(QString RecordPath READ RecordPath WRITE setRecordPath NOTIFY RecordPathChanged)
     Q_PROPERTY(QString ProjectName READ ProjectName WRITE setProjectName NOTIFY ProjectNameChanged)
     Q_PROPERTY(QString VideoFilePath READ VideoFilePath WRITE setVideoFilePath NOTIFY VideoFilePathChanged)
+    Q_PROPERTY(QString TmpsPath READ TmpsPath WRITE setTmpsPath NOTIFY TmpsPathChanged)
 
     public:
         Window_Control_t(QWidget *parent = nullptr);
@@ -37,11 +38,13 @@ class Window_Control_t : public QWidget
         QString RecordPath() const { return m_RecordPath; }
         QString ProjectName() const { return m_ProjectName; }
         QString VideoFilePath() const { return m_VideoFilePath; }
+        QString TmpsPath() const { return m_TmpsPath; }
 
         void setProjectFolder(const QString &a) { m_ProjectFolder = a; ProjectFolderChanged(); }
         void setRecordPath(const QString &a) { m_RecordPath = a; RecordPathChanged(); }
         void setProjectName(const QString &a) { m_ProjectName = a; ProjectNameChanged(); }
         void setVideoFilePath(const QString &a) { m_VideoFilePath = a; VideoFilePathChanged(); }
+        void setTmpsPath(const QString &a) { m_TmpsPath = a; TmpsPathChanged(); }
 
         QPushButton *ButtonDockWindowVideo;
 
@@ -49,6 +52,8 @@ class Window_Control_t : public QWidget
         void createAudioEngine(QMap<quint32, QMap<quint32, Record *> > *Records_Map);
         void updateAudioEngine();
         void releaseAudioResources();
+
+        AudioPlayback_t *AudioPlayback;
 
     private:
         Window_Editor_t *Window_Editor_Ptr;
@@ -63,22 +68,22 @@ class Window_Control_t : public QWidget
         QString m_ProjectName;
         QString m_VideoFilePath;
         QString m_ProjectFolder;
-        QString TmpPath;
+        QString m_TmpsPath;
         QString m_RecordPath;
-
-        AudioPlayback_t *AudioPlayback;
 
     signals:
         void ProjectFolderChanged();
         void RecordPathChanged();
         void ProjectNameChanged();
         void VideoFilePathChanged();
+        void TmpsPathChanged();
         void VideoStop();
 
     public slots:
         void videoStopEnd();
 
     private slots:
+        void updateAudioEngineFilePath();
 
 
 };

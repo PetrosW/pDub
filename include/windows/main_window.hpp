@@ -34,11 +34,11 @@ class Window_Main_t : public QMainWindow
         QAction *A_saveProject;
         QAction *A_exportProject;
 
-        QString ProjectName;
-        QString VideoFilePath;
-        QString m_ProjectFolder;
-        QString TmpPath;
-        QString m_RecordPath;
+//        QString ProjectName;
+//        QString VideoFilePath;
+//        QString m_ProjectFolder;
+//        QString TmpPath;
+//        QString m_RecordPath;
 
 
     signals:
