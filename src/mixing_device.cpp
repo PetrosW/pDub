@@ -47,7 +47,7 @@ qint64 MixingDevice_t::readData(char *Data, qint64 Maxlen)
             else Records_New.push_back(&Records_Plan[Records_PlanIndex]);
 
             Records_PlanIndex++;
-            Buffer_Result += Buffer_Tmp;
+            if ( !( (*Track)->RecordPtr->isMuted() ) ) Buffer_Result += Buffer_Tmp;
         }
 
         if (Records_PlanIndex == Records_Count) Records_PlanIndex = -1;
@@ -62,8 +62,8 @@ qint64 MixingDevice_t::readData(char *Data, qint64 Maxlen)
             memset(Buffer_TmpPtr + BytesRead, 0, Maxlen - BytesRead);
             Records_Finished.push_back(Track.key() );
         }
-
-        Buffer_Result += Buffer_Tmp;
+        
+        if ( !( (*Track)->RecordPtr->isMuted() ) ) Buffer_Result += Buffer_Tmp;
     }
 
     // Remove finished records from active map

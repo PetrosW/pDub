@@ -34,6 +34,7 @@ void AudioPlayback_t::init()
 
 void AudioPlayback_t::planUpdate()
 {
+    AudioOutput->reset();
     MixingDevice.planUpdate();
 }
 
@@ -45,25 +46,21 @@ void AudioPlayback_t::planClear()
 void AudioPlayback_t::initStartComplete()
 {
     AudioOutput->reset();
-    //QTimer::singleShot(0, [this]{AudioOutput->reset();qDebug() << AudioOutput->state();});
 }
 
 void AudioPlayback_t::play()
 {
-    qDebug() << "playyyyyyyyy";
     if (AudioOutput->state() == QAudio::SuspendedState) AudioOutput->resume();
     else if (AudioOutput->state() == QAudio::StoppedState) AudioOutput->start(&MixingDevice);
 }
 
 void AudioPlayback_t::pause()
 {
-    qDebug() << "pauuuuuuuuuuuuuse";
     AudioOutput->suspend();
 }
 
 void AudioPlayback_t::seek(quint64 Miliseconds)
 {
-    qDebug() << "seeeeeeeeeek";
     auto CurrentState = AudioOutput->state();
     AudioOutput->reset();
     MixingDevice.seek(Miliseconds);
