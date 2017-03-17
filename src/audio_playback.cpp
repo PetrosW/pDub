@@ -67,7 +67,7 @@ void AudioPlayback_t::seek(quint64 Miliseconds)
     if (CurrentState == QAudio::ActiveState) play();
 }
 
-void AudioPlayback_t::changeFilePath(QString &FilePath)
+void AudioPlayback_t::changeFilePath(QString FilePath)
 {
     MixingDevice.changeFilePath(FilePath);
 }

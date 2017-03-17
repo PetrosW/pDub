@@ -28,7 +28,7 @@ class AudioPlayback_t : public QObject
         void play();
         void pause();
         void seek(quint64 Miliseconds);
-        void changeFilePath(QString &FilePath);
+        void changeFilePath(QString FilePath);
 
     private slots:
         void initStartComplete();

@@ -13,7 +13,7 @@ qint64 MixingDevice_t::writeData(const char *, qint64)
 
 qint64 MixingDevice_t::readData(char *Data, qint64 Maxlen)
 {
-    qDebug() << Maxlen;
+    qDebug() << "Maxlen: " << Maxlen;
     if (!BufferSize)
     {
         BufferSize = (Maxlen >> 1);
@@ -47,7 +47,7 @@ qint64 MixingDevice_t::readData(char *Data, qint64 Maxlen)
             else Records_New.push_back(&Records_Plan[Records_PlanIndex]);
 
             Records_PlanIndex++;
-            if ( !( (*Track)->RecordPtr->isMuted() ) ) Buffer_Result += Buffer_Tmp;
+            if ( !(Records_Plan[Records_PlanIndex].RecordPtr->isMuted() ) ) Buffer_Result += Buffer_Tmp;
         }
 
         if (Records_PlanIndex == Records_Count) Records_PlanIndex = -1;
