@@ -80,10 +80,16 @@ void Window_Main_t::createToolBar() {
     A_exportProject->setToolTip(tr("Export a project"));
     connect(A_exportProject, &QAction::triggered, this, &Window_Main_t::exportProject);
 
+    A_importAudio = new QAction(tr("&Import"), this);
+    A_importAudio->setShortcut(tr("Ctrl+I"));
+    A_importAudio->setToolTip(tr("Import own Audio"));
+    connect(A_importAudio, &QAction::triggered, this, &Window_Main_t::importAudio);
+
     MenuBar->addAction(A_newProject);
     MenuBar->addAction(A_loadProject);
     MenuBar->addAction(A_saveProject);
     MenuBar->addAction(A_exportProject);
+    MenuBar->addAction(A_importAudio);
 
     //toolbar: dá se všemožně posouvat atd
     /*QToolBar *ToolBar = new QToolBar(this);
@@ -298,4 +304,19 @@ void Window_Main_t::exportProject() {
     catch (...) {
         qDebug() << "fail";
     }
+}
+
+void Window_Main_t::importAudio() {
+    QString audioFile = QFileDialog::getOpenFileName(this, tr("Import Audio"),"", tr("Audio files (*.wav *.mp3 *.flac *.ogg *.m4a);;Video files (*.mkv *.avi *.mp4)"));
+    if (audioFile.isEmpty()) {
+        return;
+    }
+    qDebug() << "1";
+    qDebug() << audioFile;
+    qDebug() << Window_Control_Ptr->RecordPath() + "/record" + QString::number(Window_Control_Ptr->NextRecordId) + ".wav";
+    Window_Editor_Ptr->m_ffmpeg->convertInputAudio(audioFile, Window_Control_Ptr->RecordPath() + "/record" + QString::number(Window_Control_Ptr->NextRecordId) + ".wav");
+    qDebug() << "2";
+    Window_Editor_Ptr->addNewRecordObject(Window_Control_Ptr->NextRecordId, Window_Video_Ptr->getPlayerPosition(), 0, "record" + QString::number(Window_Control_Ptr->NextRecordId) + ".wav", 1);
+    qDebug() << "3";
+    Window_Control_Ptr->NextRecordId++;
 }

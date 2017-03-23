@@ -89,7 +89,7 @@ void Microphone::stopRecord() {
     connect(ButtonRecord, &QPushButton::clicked, this, &Microphone::startRecord);
     ButtonRecord->setText("Record");
     qDebug() << "startTimeMicro3: "<< StartTime;
-    recordingEnd(Window_Control_Ptr->NextRecordId, StartTime, 0, "record" + QString::number(Window_Control_Ptr->NextRecordId) + ".wav", 500); //500 kvůli řadě
+    recordingEnd(Window_Control_Ptr->NextRecordId, StartTime, 0, "record" + QString::number(Window_Control_Ptr->NextRecordId) + ".wav", 1); //1 = secodn line
 }
 
 void Microphone::timerRecordTick() {

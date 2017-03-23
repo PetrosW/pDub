@@ -33,13 +33,7 @@ class Window_Main_t : public QMainWindow
         QAction *A_loadProject;
         QAction *A_saveProject;
         QAction *A_exportProject;
-
-//        QString ProjectName;
-//        QString VideoFilePath;
-//        QString m_ProjectFolder;
-//        QString TmpPath;
-//        QString m_RecordPath;
-
+        QAction *A_importAudio;
 
     signals:
 
@@ -52,6 +46,7 @@ class Window_Main_t : public QMainWindow
         void loadProject();
         void saveProject();
         void exportProject();
+        void importAudio();
 };
 
 #endif // MAIN_WINDOW_H
