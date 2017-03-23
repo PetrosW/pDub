@@ -164,11 +164,11 @@ void Ffmpeg_t::compareMinMaxAndSwap(std::function<bool(int16_t, int16_t)> Sample
 }
 
 // TODO: SampleFifo to uint16_t, everywhere?
-void Ffmpeg_t::convertInputAudio(QString FileName, std::string Id)
+void Ffmpeg_t::convertInputAudio(QString InputFile, QString OutputFile)
 {
     bool DoResample = false;
     
-    initInputFileAudio(FileName);
+    initInputFileAudio(InputFile);
     
     AVCodecContext *CodecContext_In = Container_In->streams[StreamIndex]->codec;
     if (!CodecContext_In->channel_layout) CodecContext_In->channel_layout = av_get_default_channel_layout(CodecContext_In->channels);
@@ -177,12 +177,12 @@ void Ffmpeg_t::convertInputAudio(QString FileName, std::string Id)
     if ( (CodecContext_In->sample_rate != 44100) || ( (CodecContext_In->sample_fmt != AV_SAMPLE_FMT_S16P) && (CodecContext_In->sample_fmt != AV_SAMPLE_FMT_S16) ) 
        || (CodecContext_In->channel_layout != AV_CH_LAYOUT_STEREO) ) DoResample = true;
         
-    if ( (!DoResample) && (CodecContext_In->codec_id == AV_CODEC_ID_PCM_S16LE) )
+    /*if ( (!DoResample) && (CodecContext_In->codec_id == AV_CODEC_ID_PCM_S16LE) )
     {
         printf("Info: nothing needs to be done, codecs and sample rate/format fit\n");
         avformat_close_input(&Container_In);
         return;
-    }
+    }*/
     
     AVCodec *Codec_In = avcodec_find_decoder(CodecContext_In->codec_id);
     if ( (!Codec_In) || (Codec_In->id < AV_CODEC_ID_FIRST_AUDIO) || (Codec_In->id >= AV_CODEC_ID_FIRST_SUBTITLE) )
@@ -252,7 +252,7 @@ void Ffmpeg_t::convertInputAudio(QString FileName, std::string Id)
     
     if (Container_Out->oformat->flags & AVFMT_GLOBALHEADER) Stream_Out->codec->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
     
-    ErrCode = avio_open(&Container_Out->pb, Id.c_str(), AVIO_FLAG_WRITE); // co bude v Id?
+    ErrCode = avio_open(&Container_Out->pb, OutputFile.toStdString().c_str(), AVIO_FLAG_WRITE);
     if (ErrCode < 0)
     {
         cleanUp_ConvertAudio(FfmpegCleanUpLevelCode_ConvertAudio::LEVEL_AVFORMAT_OUTPUT, &Frame, &ResampleContext);

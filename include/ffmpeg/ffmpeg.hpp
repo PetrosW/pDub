@@ -107,7 +107,7 @@ class Ffmpeg_t
         void splitTrack(Record *Recording, QString Path, uint32_t FirstId, uint32_t SplitDuration);
         uint64_t getAudioDuration(QString FileName);
         std::pair<std::vector<double>, std::vector<double> > getSamplesForWaveformPlotting(QString FileName);
-        void convertInputAudio(QString FileName, std::string Id);
+        void convertInputAudio(QString InputFile, QString OutputFile);
         void exportProject(QMap<uint32_t, QMap<uint32_t, Record *> > &RecordingsMap, QString Path, QString &OutputFile, QString InputFile,
                            uint32_t Start, uint32_t End, uint8_t ExportComponents);
     
