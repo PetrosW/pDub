@@ -50,7 +50,7 @@ void Window_Video_t::createUi() {
     connect(SliderVideoTime, &QSlider::sliderMoved, this, &Window_Video_t::updateVideoTimePositionSliderMove);
 
     connect(Player, &QtAV::AVPlayer::seekFinished, this, &Window_Video_t::seekFinished);
-    connect(Player, &QtAV::AVPlayer::seekFinished, this, &Window_Video_t::hidePreviewAfterSeek);
+
 
     qDebug() << "video 2";
     connect(SliderVideoTime, &QSlider::sliderReleased, this, &Window_Video_t::signalVideoTimePositionSliderMove);
@@ -125,6 +125,7 @@ void Window_Video_t::firstPlay(QString FileName) {
     m_FileName = FileName;
     ButtonPlay->setEnabled(true);
     Player->audio()->setVolume(SliderVideoVolume->value()/100.0);
+    connect(Player, &QtAV::AVPlayer::seekFinished, this, &Window_Video_t::hidePreviewAfterSeek);
 
     //Player->setAsyncLoad(false);
     Player->setSeekType(QtAV::AccurateSeek);
