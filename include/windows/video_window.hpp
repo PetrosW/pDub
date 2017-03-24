@@ -77,6 +77,7 @@ class Window_Video_t : public QWidget
         void sliderPressRelease();
         void videoStopEnd();
         void seekFinished();
+        void hidePreviewAfterSeek();
         void lol();
 };
 

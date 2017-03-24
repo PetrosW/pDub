@@ -132,6 +132,7 @@ void Window_Main_t::newProject(QString projectName, QString videoFilePath, QStri
     Window_Control_Ptr->setVideoFilePath(videoFilePath);
 
     QDir().mkdir(projectFolder);
+    QDir().mkdir(Window_Control_Ptr->RecordPath());
     Window_Video_Ptr->firstPlay(videoFilePath);
 
     foreach (auto map, Window_Editor_Ptr->MapTimeRecord) {

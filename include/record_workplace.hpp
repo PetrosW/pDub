@@ -11,7 +11,6 @@ class RecordWorkplace : public QWidget
     public:
         explicit RecordWorkplace(QWidget *parent = 0);
     private:
-        bool mouseMove;
 
     signals:
         void sliderPositionChanged(uint32_t pos);

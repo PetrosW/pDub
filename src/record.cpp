@@ -19,7 +19,7 @@ Record::Record(uint32_t id, uint32_t startTime, uint32_t endTime, QString name, 
     Palette->setColor(QPalette::Background, Qt::darkRed);
     this->setAutoFillBackground(true);
     this->setPalette(*Palette);
-
+    mouseMove = false;
 
     m_Duration = m_EndTime - m_StartTime;
     m_WavePic = new QLabel(this);
@@ -39,12 +39,10 @@ void Record::mousePressEvent(QMouseEvent *event) {
         Palette->setColor(QPalette::Background, Qt::blue);
         this->setPalette(*Palette);
     }
-    event->ignore();
 }
 
 void Record::mouseMoveEvent(QMouseEvent *event) {
     if(event->buttons() & Qt::LeftButton) {
-
         if (event->pos().y() > 50){
             QPoint movePoint(this->x(), this->y() + 50);
             m_RowPosition++;
@@ -68,6 +66,7 @@ void Record::mouseMoveEvent(QMouseEvent *event) {
             m_EndTime = (m_StartTime + m_Duration);
             onMouseMove(m_Id, m_StartTime, m_EndTime, m_Name);
         }
+        mouseMove = true;
     }
     event->ignore();
 }
@@ -83,7 +82,13 @@ void Record::mouseReleaseEvent(QMouseEvent *event) {
     }
     this->setToolTip("Name: " + m_Name + "\n" + "StartTime: " + QString::number(m_StartTime) + "\n" + "EndTime: " + QString::number(m_EndTime));
     this->setToolTipDuration(0);
-    event->ignore();
+    if (mouseMove) {
+        mouseMove = false;
+    }
+    else {
+        event->ignore();
+    }
+
 }
 
 void Record::createWaveFormPic(Ffmpeg_t *ffmpeg, QString recortPath) {

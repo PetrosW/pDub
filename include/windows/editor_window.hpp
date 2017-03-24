@@ -49,12 +49,11 @@ class Window_Editor_t : public QWidget
         QGridLayout *ControlLayout;
 
         SliderEditor *SliderEditorControl;
+        QWidget *SliderLine;
 
         QWidget *WidgetSlider;
         QWidget *WidgetWorkPlace;
         RecordWorkplace *WidgetRecordWorkPlace;
-
-        QWidget *SliderLine;
 
         QScrollArea *ScrollAreaEditorTimeSlider;
         QScrollBar *ScrollBarEditorTimeSliderHorizontal;

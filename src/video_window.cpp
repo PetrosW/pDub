@@ -50,6 +50,7 @@ void Window_Video_t::createUi() {
     connect(SliderVideoTime, &QSlider::sliderMoved, this, &Window_Video_t::updateVideoTimePositionSliderMove);
 
     connect(Player, &QtAV::AVPlayer::seekFinished, this, &Window_Video_t::seekFinished);
+    connect(Player, &QtAV::AVPlayer::seekFinished, this, &Window_Video_t::hidePreviewAfterSeek);
 
     qDebug() << "video 2";
     connect(SliderVideoTime, &QSlider::sliderReleased, this, &Window_Video_t::signalVideoTimePositionSliderMove);
@@ -113,6 +114,11 @@ void Window_Video_t::createUi() {
 
 void Window_Video_t::lol() {
     qDebug() << "looooooooool";
+}
+
+void Window_Video_t::hidePreviewAfterSeek() {
+    m_preview->hide();
+    disconnect(Player, &QtAV::AVPlayer::seekFinished, this, &Window_Video_t::hidePreviewAfterSeek);
 }
 
 void Window_Video_t::firstPlay(QString FileName) {
@@ -181,7 +187,6 @@ void Window_Video_t::setMute(bool mute){
 // private slots
 void Window_Video_t::playInit() {
     Player->pause(true);
-
 
     m_preview->setFile(m_FileName);
     m_preview->setTimestamp(100);

@@ -48,6 +48,7 @@ class Record : public QWidget
 
         int dragStartPositionX;
         int dragMouseOffsetX;
+        bool mouseMove;
 
         uint32_t m_Id;
         uint32_t m_StartTime;
