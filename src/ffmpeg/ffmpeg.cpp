@@ -408,7 +408,7 @@ void Ffmpeg_t::prepareOutputPacketAndWriteIt(AVPacket &Packet_Out, std::vector<u
     
     memcpy(Packet_Out.data, SampleFifo.data(), Packet_Out.size);
     int16_t *tmp = reinterpret_cast<int16_t *>(Packet_Out.data);
-    for (int i = 0; i < Packet_Out.duration; i++) printf("%d\n", tmp[i << 1]);
+    //for (int i = 0; i < Packet_Out.duration; i++) printf("%d\n", tmp[i << 1]);
     //printf("\n");
     SampleFifo.erase(SampleFifo.begin(), SampleFifo.begin() + Packet_Out.size);
     

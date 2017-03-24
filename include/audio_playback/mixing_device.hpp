@@ -16,12 +16,15 @@ class PlannedRecord_t
 {
     public:
         PlannedRecord_t(Record *Track, QString &FilePath)
-            : RecordPtr(Track), WavFile(FilePath + '/' + Track->Name() ), StartingSample(floor(Track->StartTime() / OneSampleInMs) ) {}
-        PlannedRecord_t(PlannedRecord_t &&rhs) : RecordPtr(rhs.RecordPtr), WavFile(rhs.WavFile.fileName() ), StartingSample(rhs.StartingSample) {}
+            : RecordPtr(Track), WavFile(FilePath + '/' + Track->Name() ), StartingSample(floor(Track->StartTime() / OneSampleInMs) ),
+              EndingSample(floor(Track->EndTime() / OneSampleInMs) ) {}
+        PlannedRecord_t(PlannedRecord_t &&rhs)
+            : RecordPtr(rhs.RecordPtr), WavFile(rhs.WavFile.fileName() ), StartingSample(rhs.StartingSample), EndingSample(rhs.EndingSample) {}
 
         Record *RecordPtr;
         QFile WavFile;
         quint64 StartingSample;
+        quint64 EndingSample;
 };
 
 class MixingDevice_t : public QIODevice
@@ -30,7 +33,7 @@ class MixingDevice_t : public QIODevice
 
     public:
         MixingDevice_t(QMap<quint32, QMap<quint32, Record *> > *Records_Map, QString &FilePath);
-        void seek(quint64 Miliseconds);
+        void seek(quint64 SamplePos);
         void planUpdate();
         void planClear();
         void changeFilePath(QString &FilePath);

@@ -34,8 +34,11 @@ void AudioPlayback_t::init()
 
 void AudioPlayback_t::planUpdate()
 {
+    auto CurrentState = AudioOutput->state();
+    
     AudioOutput->reset();
     MixingDevice.planUpdate();
+    if (CurrentState == QAudio::ActiveState) play();
 }
 
 void AudioPlayback_t::planClear()
@@ -62,8 +65,10 @@ void AudioPlayback_t::pause()
 void AudioPlayback_t::seek(quint64 Miliseconds)
 {
     auto CurrentState = AudioOutput->state();
+    
     AudioOutput->reset();
-    MixingDevice.seek(Miliseconds);
+    qDebug() << "Seeking to " << Miliseconds << " ms";
+    MixingDevice.seek(floor(Miliseconds / OneSampleInMs) );
     if (CurrentState == QAudio::ActiveState) play();
 }
 

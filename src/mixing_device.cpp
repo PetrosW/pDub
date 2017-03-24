@@ -46,13 +46,13 @@ qint64 MixingDevice_t::readData(char *Data, qint64 Maxlen)
             if (BytesRead < DataLength) memset(Buffer_TmpPtr + ZeroLength + BytesRead, 0, DataLength - BytesRead);
             else Records_New.push_back(&Records_Plan[Records_PlanIndex]);
 
-            Records_PlanIndex++;
             if ( !(Records_Plan[Records_PlanIndex].RecordPtr->isMuted() ) ) Buffer_Result += Buffer_Tmp;
+            Records_PlanIndex++;
         }
 
         if (Records_PlanIndex == Records_Count) Records_PlanIndex = -1;
     }
-
+    
     // Read and combine samples from active records
     for (auto Track = Records_Active.begin(); Track != Records_Active.end(); Track++)
     {
@@ -78,12 +78,13 @@ qint64 MixingDevice_t::readData(char *Data, qint64 Maxlen)
     return Maxlen;
 }
 
-void MixingDevice_t::seek(quint64 Miliseconds)
+void MixingDevice_t::seek(quint64 SamplePos)
 {
     // Clear current playing state
     Records_Active.clear();
 
-    SamplePosition = floor(Miliseconds / OneSampleInMs);
+    SamplePosition = SamplePos;
+    //qDebug() << "SamplePosition: " << SamplePosition;
     char ChunkName[5];
     char ChunkSize[4];
     quint32 *ChunkSize_Int = reinterpret_cast<quint32 *>(ChunkSize);
@@ -105,7 +106,7 @@ void MixingDevice_t::seek(quint64 Miliseconds)
     // Choose possible active candidates
     std::vector<quint16> PossibleActiveRecords;
     quint16 i;
-    for (i = 0; (i < Records_Plan.size() ) && (Records_Plan[i].RecordPtr->StartTime() <= Miliseconds); i++)
+    for (i = 0; (i < Records_Plan.size() ) && (Records_Plan[i].StartingSample <= SamplePosition); i++)
         PossibleActiveRecords.push_back(i);
 
     // -1 if all records were checked
@@ -114,7 +115,7 @@ void MixingDevice_t::seek(quint64 Miliseconds)
     // Add active records to the map and file seek to the correct positions
     for (auto Index: PossibleActiveRecords)
     {
-        if (Records_Plan[Index].RecordPtr->EndTime() > Miliseconds)
+        if (Records_Plan[Index].EndingSample > SamplePosition)
         {
             Records_Active.insert(Records_Plan[Index].RecordPtr->Id(), &Records_Plan[Index]);
             Records_Plan[Index].WavFile.seek(Records_Plan[Index].WavFile.pos() + ( (SamplePosition - Records_Plan[Index].StartingSample) << 2) );
