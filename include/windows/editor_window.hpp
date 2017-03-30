@@ -62,6 +62,8 @@ class Window_Editor_t : public QWidget
         QScrollBar *ScrollBarWorkPlaceVertical;
         QScrollBar *ScrollBarWorkPlaceHorizontal;
 
+        QSlider *SliderRecordVolume;
+
         QPushButton *ButtonDelete;
         QPushButton *ButtonSplit;
         QPushButton *ButtonMerge;
@@ -92,8 +94,9 @@ class Window_Editor_t : public QWidget
 
     public slots:
         void setSliderLinePosition(uint32_t pos);
-        void addNewRecordObject(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name, uint32_t RowPosition);
-        void recordSelected(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name);
+        void setRecordVolume();
+        void addNewRecordObject(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name, uint32_t RowPosition, uint32_t Volume);
+        void recordSelected(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name, uint32_t Volume);
         void recordMoveSelected(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name);
 };
 

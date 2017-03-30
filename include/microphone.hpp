@@ -49,7 +49,7 @@ class Microphone : public QWidget
         void timerRecordTick();
 
     signals:
-        void recordingEnd(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name, uint32_t RowPosition);
+        void recordingEnd(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name, uint32_t RowPosition, uint32_t Volume);
 };
 
 #endif // MICROPHONE

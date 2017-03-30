@@ -142,6 +142,16 @@ void Window_Main_t::newProject(QString projectName, QString videoFilePath, QStri
         map.clear();
     }
     Window_Editor_Ptr->MapTimeRecord.clear();
+    qDebug() << "1";
+    qDebug() << videoFilePath;
+    Window_Editor_Ptr->m_ffmpeg->convertInputAudio(videoFilePath, Window_Control_Ptr->RecordPath() + "/record0.wav");
+    qDebug() << "2";
+    Window_Editor_Ptr->addNewRecordObject(Window_Control_Ptr->NextRecordId, Window_Video_Ptr->getPlayerPosition(), 0, "record0.wav", 0, 100);
+    qDebug() << "3";
+    Window_Control_Ptr->NextRecordId++;
+
+
+
 }
 
 void Window_Main_t::newProjectDialog() {
@@ -196,7 +206,7 @@ void Window_Main_t::loadProject() {
         Window_Control_Ptr->setVideoFilePath(xmlReader.readElementText());
     //}
     xmlReader.readNextStartElement();  //první <record>
-    uint32_t id; uint32_t startTime; uint32_t endTime; QString name; uint32_t rowPosition;
+    uint32_t id; uint32_t startTime; uint32_t endTime; QString name; uint32_t rowPosition; uint32_t volume;
     uint32_t nextIdLoad = 0;
     while(!xmlReader.atEnd()) {
         if (xmlReader.isEndElement()) {
@@ -217,8 +227,10 @@ void Window_Main_t::loadProject() {
         xmlReader.readNextStartElement();
         rowPosition = xmlReader.readElementText().toUInt();
         xmlReader.readNextStartElement();
+        volume = xmlReader.readElementText().toUInt();
+        xmlReader.readNextStartElement();
         xmlReader.readNextStartElement(); //nevím proč ale jinak to nejde
-        Window_Editor_Ptr->addNewRecordObject(id, startTime, endTime, name, rowPosition);
+        Window_Editor_Ptr->addNewRecordObject(id, startTime, endTime, name, rowPosition, volume);
         if (nextIdLoad <= id) {
             nextIdLoad = id + 1;
         }
@@ -274,6 +286,7 @@ void Window_Main_t::saveProject() {
             //xmlWriter.writeTextElement("row", QString::number(value.row));
             xmlWriter.writeTextElement("endTime", QString::number(item->EndTime()));
             xmlWriter.writeTextElement("rowPosition", QString::number(item->RowPosition()));
+            xmlWriter.writeTextElement("volume", QString::number(item->Volume()));
             xmlWriter.writeEndElement();
         }
     }
@@ -308,7 +321,7 @@ void Window_Main_t::exportProject() {
 }
 
 void Window_Main_t::importAudio() {
-    QString audioFile = QFileDialog::getOpenFileName(this, tr("Import Audio"),"", tr("Audio files (*.wav *.mp3 *.flac *.ogg *.m4a);;Video files (*.mkv *.avi *.mp4)"));
+    QString audioFile = QFileDialog::getOpenFileName(this, tr("Import Audio"),"", tr("Audio files (*.wav *.mp3 *.flac *.ogg *.m4a);;Video files (*.mkv *.avi *.mp4 *.webm)"));
     if (audioFile.isEmpty()) {
         return;
     }
@@ -317,7 +330,7 @@ void Window_Main_t::importAudio() {
     qDebug() << Window_Control_Ptr->RecordPath() + "/record" + QString::number(Window_Control_Ptr->NextRecordId) + ".wav";
     Window_Editor_Ptr->m_ffmpeg->convertInputAudio(audioFile, Window_Control_Ptr->RecordPath() + "/record" + QString::number(Window_Control_Ptr->NextRecordId) + ".wav");
     qDebug() << "2";
-    Window_Editor_Ptr->addNewRecordObject(Window_Control_Ptr->NextRecordId, Window_Video_Ptr->getPlayerPosition(), 0, "record" + QString::number(Window_Control_Ptr->NextRecordId) + ".wav", 1);
+    Window_Editor_Ptr->addNewRecordObject(Window_Control_Ptr->NextRecordId, Window_Video_Ptr->getPlayerPosition(), 0, "record" + QString::number(Window_Control_Ptr->NextRecordId) + ".wav", 1, 100);
     qDebug() << "3";
     Window_Control_Ptr->NextRecordId++;
 }

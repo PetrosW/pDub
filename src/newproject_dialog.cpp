@@ -54,7 +54,7 @@ void newProject_dialog::selectFolder() {
 }
 
 void newProject_dialog::selectVideo() {
-    QString FileVideo = QFileDialog::getOpenFileName(this, tr("Open a video"),"", tr("Videos (*.avi *.mp4 *.mkv)"));
+    QString FileVideo = QFileDialog::getOpenFileName(this, tr("Open a video"),"", tr("Videos (*.avi *.mp4 *.mkv *.webm)"));
     if (FileVideo.isEmpty()) {
         LineEditSelectVideo->setText("Error");
         return;

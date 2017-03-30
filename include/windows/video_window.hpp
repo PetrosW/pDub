@@ -45,7 +45,6 @@ class Window_Video_t : public QWidget
         QPushButton *ButtonSeekForward;
         QPushButton *ButtonSeekBackward;
         QSlider *SliderVideoTime;
-        QSlider *SliderVideoVolume;
 
         QPushButton *ButtonDockWindowVideo;
 
@@ -63,14 +62,12 @@ class Window_Video_t : public QWidget
         void play();
         void pause();
         void updateVideoPositionEditorSlider(uint32_t pos);
-        void setMute(bool set);
-
 
     private slots:
         void playInit();
         void seekForward();
         void seekBackward();
-        void setVolume(int newVolume);
+        //void setVolume(int newVolume);
         void updateSilderTimeValue(qint64 newSliderPosition);
         void updateVideoTimePositionSliderMove(int newPlayerTimePosition);
         void updateVideoTimePositionSliderPressed();

@@ -1,7 +1,7 @@
 #include <record.hpp>
 
-Record::Record(uint32_t id, uint32_t startTime, uint32_t endTime, QString name, uint32_t rowPosition, QWidget *parent) :
-    m_Id(id), m_StartTime(startTime), m_EndTime(endTime), m_Name(name), m_RowPosition(rowPosition), QWidget(parent)
+Record::Record(uint32_t id, uint32_t startTime, uint32_t endTime, QString name, uint32_t rowPosition, uint32_t volume, QWidget *parent) :
+    m_Id(id), m_StartTime(startTime), m_EndTime(endTime), m_Name(name), m_Volume(volume), m_RowPosition(rowPosition), QWidget(parent)
 {
     qDebug() << "record object";
     qDebug() << parent;
@@ -10,6 +10,7 @@ Record::Record(uint32_t id, uint32_t startTime, uint32_t endTime, QString name, 
     qDebug() << m_EndTime;
     qDebug() << m_Name;
 
+    m_VolumeNormalized = float(m_Volume/100.0f);
 
     this->setGeometry(m_StartTime / 100, m_RowPosition * 50, (m_EndTime - m_StartTime) / 100, 50);
     this->setToolTip("Name: " + m_Name + "\n" + "StartTime: " + QString::number(m_StartTime) + "\n" + "EndTime: " + QString::number(m_EndTime));
@@ -26,13 +27,12 @@ Record::Record(uint32_t id, uint32_t startTime, uint32_t endTime, QString name, 
 
     CheckBoxMuteRecord = new QCheckBox(this);
     CheckBoxMuteRecord->setChecked(true);
-
 }
 
 void Record::mousePressEvent(QMouseEvent *event) {
     if(event->button() == Qt::LeftButton) {
         oldStartTime = m_StartTime;
-        onMousePress(m_Id, m_StartTime, m_EndTime, m_Name);
+        onMousePress(m_Id, m_StartTime, m_EndTime, m_Name, m_Volume);
         this->raise();
         dragMouseOffsetX = event->pos().x();
 
@@ -64,7 +64,7 @@ void Record::mouseMoveEvent(QMouseEvent *event) {
             this->move(movePoint);
             m_StartTime = this->x() * 100;
             m_EndTime = (m_StartTime + m_Duration);
-            onMouseMove(m_Id, m_StartTime, m_EndTime, m_Name);
+            onMouseMove(m_Id, m_StartTime, m_EndTime, m_Name, m_Volume);
         }
         mouseMove = true;
     }
@@ -78,7 +78,7 @@ void Record::mouseReleaseEvent(QMouseEvent *event) {
         if (m_StartTime != oldStartTime) {
             relocateByMouseMove(m_Id, oldStartTime);
         }
-        onMouseRelease(m_Id, m_StartTime, m_EndTime, m_Name);
+        onMouseRelease(m_Id, m_StartTime, m_EndTime, m_Name, m_Volume);
     }
     this->setToolTip("Name: " + m_Name + "\n" + "StartTime: " + QString::number(m_StartTime) + "\n" + "EndTime: " + QString::number(m_EndTime));
     this->setToolTipDuration(0);

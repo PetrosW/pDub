@@ -96,15 +96,6 @@ void Window_Video_t::createUi() {
     connect(ButtonSeekForward, &QPushButton::clicked, this, &Window_Video_t::seekForward);
     LayoutVideoControl->addWidget(ButtonSeekForward, 0, 3);
 
-    SliderVideoVolume = new QSlider(Qt::Horizontal, this);
-    SliderVideoVolume->setMaximumWidth(100);
-    SliderVideoVolume->setMinimum(0);
-    SliderVideoVolume->setMaximum(100);
-    SliderVideoVolume->setTickInterval(1);
-    SliderVideoVolume->setValue(80);
-    connect(SliderVideoVolume, &QSlider::valueChanged, this, &Window_Video_t::setVolume);
-    LayoutVideoControl->addWidget(SliderVideoVolume, 0, 4);
-
     m_preview = new QtAV::VideoPreviewWidget(this);
     //m_preview->setWindowFlags(m_preview->windowFlags() |Qt::FramelessWindowHint|Qt::WindowStaysOnTopHint);
     m_preview->resize(200, 200);
@@ -124,7 +115,7 @@ void Window_Video_t::hidePreviewAfterSeek() {
 void Window_Video_t::firstPlay(QString FileName) {
     m_FileName = FileName;
     ButtonPlay->setEnabled(true);
-    Player->audio()->setVolume(SliderVideoVolume->value()/100.0);
+    Player->audio()->setVolume(0.0);
     connect(Player, &QtAV::AVPlayer::seekFinished, this, &Window_Video_t::hidePreviewAfterSeek);
 
     //Player->setAsyncLoad(false);
@@ -181,9 +172,6 @@ void Window_Video_t::updateVideoPositionEditorSlider(uint32_t pos) {
     connect(Player, &QtAV::AVPlayer::positionChanged, this, &Window_Video_t::positionVideoChanged);
 }
 
-void Window_Video_t::setMute(bool mute){
-    Player->audio()->setMute(mute);
-}
 
 // private slots
 void Window_Video_t::playInit() {
@@ -196,10 +184,6 @@ void Window_Video_t::playInit() {
 
     SliderVideoTime->setMaximum(Player->duration());
     Window_Editor_Ptr->setAfterVideoLoad(Player->duration());
-}
-
-void Window_Video_t::setVolume(int newVolume) {
-    Player->audio()->setVolume(newVolume/100.0);
 }
 
 void Window_Video_t::updateVideoTimePositionSliderMove(int newPlayerTimePosition) {

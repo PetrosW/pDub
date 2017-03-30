@@ -38,24 +38,34 @@ void Window_Editor_t::createUi() {
     LabelVideoTime = new QLabel("VideoTime: 00:00:00", this);
     ControlLayout->addWidget(LabelVideoTime, 1, 0, 1, 3);
 
-    LabelRecordStartTime = new QLabel("StarTime: 00:00:00", this);
+    LabelRecordStartTime = new QLabel("StarTime: 00:00:00.00", this);
     ControlLayout->addWidget(LabelRecordStartTime, 2, 0, 1, 3);
 
     ButtonBackward = new QPushButton("<<", this);
-    ControlLayout->addWidget(ButtonBackward, 2, 0, 2, 1);
+    ControlLayout->addWidget(ButtonBackward, 3, 0, 2, 1);
     ButtonForward = new QPushButton(">>", this);
-    ControlLayout->addWidget(ButtonForward, 2, 2, 2, 1);
+    ControlLayout->addWidget(ButtonForward, 3, 2, 2, 1);
 
-    LabelRecordEndTime = new QLabel("EndTime: 00:00:00", this);
-    ControlLayout->addWidget(LabelRecordEndTime, 3, 0, 1, 3);
+    LabelRecordEndTime = new QLabel("EndTime: 00:00:00.00", this);
+    ControlLayout->addWidget(LabelRecordEndTime, 4, 0, 1, 3);
+
+    SliderRecordVolume = new QSlider(Qt::Horizontal, this);
+//    SliderRecordVolume->setMaximumWidth(100);
+    SliderRecordVolume->setMinimum(0);
+    SliderRecordVolume->setMaximum(100);
+    SliderRecordVolume->setTickInterval(1);
+    SliderRecordVolume->setValue(100);
+    ControlLayout->addWidget(SliderRecordVolume, 5, 0, 1, 3);
+    connect(SliderRecordVolume, &QSlider::valueChanged, this, &Window_Editor_t::setRecordVolume);
 
     ButtonSplit = new QPushButton("Split", this);
-    ControlLayout->addWidget(ButtonSplit, 4, 0, 1, 3);
+    ControlLayout->addWidget(ButtonSplit, 6, 0, 1, 3);
     ButtonMerge = new QPushButton("Merge", this);
-    ControlLayout->addWidget(ButtonMerge, 5, 0, 1, 3);
+    ControlLayout->addWidget(ButtonMerge, 7, 0, 1, 3);
     ButtonDelete = new QPushButton("Delete", this);
-    ControlLayout->addWidget(ButtonDelete, 6, 0, 1, 3);
-
+    ControlLayout->addWidget(ButtonDelete, 8, 0, 1, 3);
+    connect(ButtonSplit, &QPushButton::clicked, this, &Window_Editor_t::splitRecord);
+    connect(ButtonDelete, &QPushButton::clicked, this, &Window_Editor_t::deleteRecord);
 
     ScrollAreaEditorTimeSlider = new QScrollArea(this);
     ScrollBarEditorTimeSliderHorizontal = new QScrollBar(ScrollAreaEditorTimeSlider);
@@ -125,8 +135,8 @@ void Window_Editor_t::createUi() {
     connect(WidgetRecordWorkPlace, &RecordWorkplace::sliderPositionChanged, SliderEditorControl, &SliderEditor::setSliderLinePosition);
     //connect(Window_Video_Ptr, &Window_Video_t::signalVideoTimePositionSliderMove, this, &Window_Editor_t::updateRecordPlayer);
     //connect(CheckBoxMuteRecords, &QCheckBox::stateChanged, this, &Window_Editor_t::updateRecordPlayer);
-    connect(ButtonSplit, &QPushButton::clicked, this, &Window_Editor_t::splitRecord);
-    connect(ButtonDelete, &QPushButton::clicked, this, &Window_Editor_t::deleteRecord);
+
+
 
 //    connect(SliderEditorControl, &SliderEditor::sliderLinePositionChanged, Window_Control_Ptr->AudioPlayback, &AudioPlayback_t::seek);
 //    connect(WidgetRecordWorkPlace, &RecordWorkplace::sliderPositionChanged, Window_Control_Ptr->AudioPlayback, &AudioPlayback_t::seek);
@@ -197,8 +207,8 @@ void Window_Editor_t::splitRecord() {
             splitRec = it.value()[SelectedRecordId];
             uint32_t pos = (SliderLine->x()*100) - splitRec->StartTime();
             m_ffmpeg->splitTrack(splitRec,Window_Control_Ptr->RecordPath(),Window_Control_Ptr->NextRecordId,pos);
-            addNewRecordObject(Window_Control_Ptr->NextRecordId, splitRec->StartTime(), 0, "record"+QString::number(Window_Control_Ptr->NextRecordId)+".wav", splitRec->RowPosition());
-            addNewRecordObject(Window_Control_Ptr->NextRecordId, splitRec->StartTime()+pos+1, 0, "record"+QString::number(Window_Control_Ptr->NextRecordId)+".wav", splitRec->RowPosition());
+            addNewRecordObject(Window_Control_Ptr->NextRecordId, splitRec->StartTime(), 0, "record"+QString::number(Window_Control_Ptr->NextRecordId)+".wav", splitRec->RowPosition(), splitRec->Volume());
+            addNewRecordObject(Window_Control_Ptr->NextRecordId, splitRec->StartTime()+pos+1, 0, "record"+QString::number(Window_Control_Ptr->NextRecordId)+".wav", splitRec->RowPosition(), splitRec->Volume());
             delete splitRec;
             it.value().remove(SelectedRecordId);
             SelectedRecordId = Window_Control_Ptr->NextRecordId - 1;
@@ -270,13 +280,13 @@ void Window_Editor_t::setAfterVideoLoad(qint64 duration) {
 
 //public slots
 
-void Window_Editor_t::addNewRecordObject(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name, uint32_t RowPosition) {
+void Window_Editor_t::addNewRecordObject(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name, uint32_t RowPosition, uint32_t Volume) {
     qDebug() << "startTime: "<< StartTime;
     EndTime = StartTime + (uint32_t)m_ffmpeg->getAudioDuration(Window_Control_Ptr->RecordPath() + "/" + Name);
     if (RowPosition == 500) {
         RowPosition = 0;
     }
-    Record *record = new Record(RecordId, StartTime, EndTime, Name, RowPosition, WidgetRecordWorkPlace);
+    Record *record = new Record(RecordId, StartTime, EndTime, Name, RowPosition, Volume, WidgetRecordWorkPlace);
     record->createWaveFormPic(m_ffmpeg, Window_Control_Ptr->RecordPath());
     record->show();
 
@@ -290,7 +300,6 @@ void Window_Editor_t::addNewRecordObject(uint32_t RecordId, uint32_t StartTime, 
         MapTimeRecord.insert(StartTime, MapRecord);
     }
 
-
     connect(record, &Record::relocateByMouseMove, this, &Window_Editor_t::relocateRecordInMap);
     connect(record, &Record::onMouseMove, this, &Window_Editor_t::recordMoveSelected);
     connect(record, &Record::onMousePress, this, &Window_Editor_t::recordSelected);
@@ -300,7 +309,7 @@ void Window_Editor_t::addNewRecordObject(uint32_t RecordId, uint32_t StartTime, 
 
 }
 
-void Window_Editor_t::recordSelected(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name) {
+void Window_Editor_t::recordSelected(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name, uint32_t Volume) {
 
     foreach (auto map, MapTimeRecord) {
         if (map.contains(SelectedRecordId)) {
@@ -312,6 +321,16 @@ void Window_Editor_t::recordSelected(uint32_t RecordId, uint32_t StartTime, uint
     SelectedRecordId = RecordId;
     LabelRecordEndTime->setText("EndTime: " + miliSecToTime(EndTime));
     LabelRecordStartTime->setText("StartTime: " + miliSecToTime(StartTime));
+    SliderRecordVolume->setValue(Volume);
+}
+
+void Window_Editor_t::setRecordVolume() {
+    foreach (auto map, MapTimeRecord) {
+        if (map.contains(SelectedRecordId)) {
+            map[SelectedRecordId]->setVolume(uint32_t(SliderRecordVolume->value()));
+            break;
+        }
+    }
 }
 
 void Window_Editor_t::recordMoveSelected(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name) {
