@@ -44,6 +44,7 @@ class Window_Editor_t : public QWidget
         Window_Video_t *Window_Video_Ptr;
 
         uint32_t SelectedRecordId;
+        Record *SelectedRecord;
 
         QGridLayout *Layout;
         QGridLayout *ControlLayout;
@@ -96,7 +97,7 @@ class Window_Editor_t : public QWidget
         void setSliderLinePosition(uint32_t pos);
         void setRecordVolume();
         void addNewRecordObject(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name, uint32_t RowPosition, uint32_t Volume);
-        void recordSelected(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name, uint32_t Volume);
+        void recordSelected(Record* RecordPointer, uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name, uint32_t Volume);
         void recordMoveSelected(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name);
 };
 

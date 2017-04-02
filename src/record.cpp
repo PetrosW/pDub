@@ -32,7 +32,7 @@ Record::Record(uint32_t id, uint32_t startTime, uint32_t endTime, QString name, 
 void Record::mousePressEvent(QMouseEvent *event) {
     if(event->button() == Qt::LeftButton) {
         oldStartTime = m_StartTime;
-        onMousePress(m_Id, m_StartTime, m_EndTime, m_Name, m_Volume);
+        onMousePress(this, m_Id, m_StartTime, m_EndTime, m_Name, m_Volume);
         this->raise();
         dragMouseOffsetX = event->pos().x();
 
@@ -64,7 +64,7 @@ void Record::mouseMoveEvent(QMouseEvent *event) {
             this->move(movePoint);
             m_StartTime = this->x() * 100;
             m_EndTime = (m_StartTime + m_Duration);
-            onMouseMove(m_Id, m_StartTime, m_EndTime, m_Name, m_Volume);
+            onMouseMove(m_Id, m_StartTime, m_EndTime, m_Name);
         }
         mouseMove = true;
     }
@@ -78,7 +78,7 @@ void Record::mouseReleaseEvent(QMouseEvent *event) {
         if (m_StartTime != oldStartTime) {
             relocateByMouseMove(m_Id, oldStartTime);
         }
-        onMouseRelease(m_Id, m_StartTime, m_EndTime, m_Name, m_Volume);
+        onMouseRelease(this, m_Id, m_StartTime, m_EndTime, m_Name, m_Volume);
     }
     this->setToolTip("Name: " + m_Name + "\n" + "StartTime: " + QString::number(m_StartTime) + "\n" + "EndTime: " + QString::number(m_EndTime));
     this->setToolTipDuration(0);
@@ -144,6 +144,13 @@ void Record::createWaveFormPic(Ffmpeg_t *ffmpeg, QString recortPath) {
     // místo 2 podle toho jaký zoom
     m_WavePic->setPixmap(v_PixWaves[2]);
 
+}
+
+void Record::select() {
+    onMousePress(this, m_Id, m_StartTime, m_EndTime, m_Name, m_Volume);
+    this->raise();
+    Palette->setColor(QPalette::Background, Qt::blue);
+    this->setPalette(*Palette);
 }
 
 void Record::deselect() {

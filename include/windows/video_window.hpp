@@ -27,6 +27,8 @@ class Window_Video_t : public QWidget
 
         void createUi();
 
+        QPushButton *ButtonFullScreen;
+
     private:
         QString m_FileName;
 
@@ -44,9 +46,14 @@ class Window_Video_t : public QWidget
         QPushButton *ButtonPlay;
         QPushButton *ButtonSeekForward;
         QPushButton *ButtonSeekBackward;
+
         QSlider *SliderVideoTime;
 
         QPushButton *ButtonDockWindowVideo;
+
+        boolean IsFullScreen;
+
+
 
         bool isPlayingSliderPress; // pomocna pro urcovani pauzi pred kliknutim na slider
         bool isPlaying;
@@ -75,6 +82,7 @@ class Window_Video_t : public QWidget
         void videoStopEnd();
         void seekFinished();
         void hidePreviewAfterSeek();
+        void fullScreenVideo();
         void lol();
 };
 

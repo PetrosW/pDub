@@ -15,6 +15,7 @@ Window_Editor_t::Window_Editor_t(QWidget *parent) : QWidget(parent), Window_Cont
     Layout->setColumnMinimumWidth(0, 200);
     Layout->setColumnStretch(0, 1);
 
+    SelectedRecord = NULL;
 
     m_ffmpeg = new Ffmpeg_t();
 
@@ -154,9 +155,8 @@ void Window_Editor_t::addRow() {
 //    WidgetWorkPlace->resize(WidgetWorkPlace->width(), WidgetWorkPlace->height()+50);
 //    WidgetRecordWorkPlace->resize(WidgetRecordWorkPlace->width(), WidgetRecordWorkPlace->height()+50);
 //    ButtonAddRow->move(20,ButtonAddRow->y()+50);
-    qDebug() << Window_Control_Ptr->pos();
-    qDebug() << Window_Video_Ptr->pos();
-    qDebug() << this->pos();
+    qDebug() << SelectedRecord->Volume();
+    qDebug() << SelectedRecord->VolumeNormalized();
 }
 
 void Window_Editor_t::relocateRecordInMap(uint32_t RecordID, uint32_t OldStartTime) {
@@ -290,7 +290,6 @@ void Window_Editor_t::addNewRecordObject(uint32_t RecordId, uint32_t StartTime, 
     record->createWaveFormPic(m_ffmpeg, Window_Control_Ptr->RecordPath());
     record->show();
 
-
     if (MapTimeRecord.contains(StartTime)) {
         MapTimeRecord[StartTime].insert(RecordId, record);
     }
@@ -303,21 +302,17 @@ void Window_Editor_t::addNewRecordObject(uint32_t RecordId, uint32_t StartTime, 
     connect(record, &Record::relocateByMouseMove, this, &Window_Editor_t::relocateRecordInMap);
     connect(record, &Record::onMouseMove, this, &Window_Editor_t::recordMoveSelected);
     connect(record, &Record::onMousePress, this, &Window_Editor_t::recordSelected);
-
+    record->select();
     Window_Control_Ptr->NextRecordId++;
     Window_Control_Ptr->updateAudioEngine();
 
 }
 
-void Window_Editor_t::recordSelected(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name, uint32_t Volume) {
-
-    foreach (auto map, MapTimeRecord) {
-        if (map.contains(SelectedRecordId)) {
-            map[SelectedRecordId]->deselect();
-            break;
-        }
+void Window_Editor_t::recordSelected(Record* RecordPointer, uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name, uint32_t Volume) {
+    if (SelectedRecord != NULL) {
+        SelectedRecord->deselect();
     }
-
+    SelectedRecord = RecordPointer;
     SelectedRecordId = RecordId;
     LabelRecordEndTime->setText("EndTime: " + miliSecToTime(EndTime));
     LabelRecordStartTime->setText("StartTime: " + miliSecToTime(StartTime));
@@ -325,12 +320,7 @@ void Window_Editor_t::recordSelected(uint32_t RecordId, uint32_t StartTime, uint
 }
 
 void Window_Editor_t::setRecordVolume() {
-    foreach (auto map, MapTimeRecord) {
-        if (map.contains(SelectedRecordId)) {
-            map[SelectedRecordId]->setVolume(uint32_t(SliderRecordVolume->value()));
-            break;
-        }
-    }
+    SelectedRecord->setVolume(uint32_t(SliderRecordVolume->value()));
 }
 
 void Window_Editor_t::recordMoveSelected(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name) {

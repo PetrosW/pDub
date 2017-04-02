@@ -105,10 +105,12 @@ void Window_Main_t::dockingChange()
         Window_Control_Ptr->ButtonDockWindowVideo->setText("Dock Video");
         Window_Video_Ptr->setParent(nullptr);
         Window_Video_Ptr->setWindowFlags(Qt::Tool | Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowStaysOnTopHint);
+        Window_Video_Ptr->ButtonFullScreen->setEnabled(true);
         Window_Video_Ptr->show();
     }
     else
     {
+        Window_Video_Ptr->ButtonFullScreen->setEnabled(false);
         Window_Video_Ptr->setParent(this);
         Layout_Horizontal->addWidget(Window_Video_Ptr);
         Window_Control_Ptr->ButtonDockWindowVideo->setText("UnDock Video");
@@ -142,16 +144,9 @@ void Window_Main_t::newProject(QString projectName, QString videoFilePath, QStri
         map.clear();
     }
     Window_Editor_Ptr->MapTimeRecord.clear();
-    qDebug() << "1";
-    qDebug() << videoFilePath;
     Window_Editor_Ptr->m_ffmpeg->convertInputAudio(videoFilePath, Window_Control_Ptr->RecordPath() + "/record0.wav");
-    qDebug() << "2";
-    Window_Editor_Ptr->addNewRecordObject(Window_Control_Ptr->NextRecordId, Window_Video_Ptr->getPlayerPosition(), 0, "record0.wav", 0, 100);
-    qDebug() << "3";
+    Window_Editor_Ptr->addNewRecordObject(Window_Control_Ptr->NextRecordId, 0, 0, "record0.wav", 0, 100);
     Window_Control_Ptr->NextRecordId++;
-
-
-
 }
 
 void Window_Main_t::newProjectDialog() {
@@ -219,10 +214,6 @@ void Window_Main_t::loadProject() {
         xmlReader.readNextStartElement();
         startTime = xmlReader.readElementText().toUInt();
         xmlReader.readNextStartElement();
-        /*newRecord.color = xmlReader.readElementText();
-        xmlReader.readNextStartElement();
-        newRecord.row = xmlReader.readElementText().toInt();
-        xmlReader.readNextStartElement();*/
         endTime = xmlReader.readElementText().toUInt();
         xmlReader.readNextStartElement();
         rowPosition = xmlReader.readElementText().toUInt();
@@ -274,16 +265,12 @@ void Window_Main_t::saveProject() {
     //}
     xmlWriter.writeEndElement();
 
-    qDebug() << "save";
     foreach (auto map, Window_Editor_Ptr->MapTimeRecord) {
-        qDebug() << "save22";
         foreach(Record *item, map) {
             xmlWriter.writeStartElement("record");
             xmlWriter.writeAttribute("id", QString::number(item->Id()));
             xmlWriter.writeTextElement("recordName", item->Name());
             xmlWriter.writeTextElement("startTime", QString::number(item->StartTime()));
-            //xmlWriter.writeTextElement("color", value.color);
-            //xmlWriter.writeTextElement("row", QString::number(value.row));
             xmlWriter.writeTextElement("endTime", QString::number(item->EndTime()));
             xmlWriter.writeTextElement("rowPosition", QString::number(item->RowPosition()));
             xmlWriter.writeTextElement("volume", QString::number(item->Volume()));
@@ -307,6 +294,7 @@ void Window_Main_t::saveProject() {
 
 }
 void Window_Main_t::exportProject() {
+    saveProject();
     QString tmpr = Window_Control_Ptr->ProjectFolder() + "/output.mp3";
     try {
         Window_Editor_Ptr->m_ffmpeg->exportProject(Window_Editor_Ptr->MapTimeRecord, Window_Control_Ptr->RecordPath() + "/", tmpr, Window_Control_Ptr->VideoFilePath(), 0, Window_Video_Ptr->videoDuration(), FfmpegExportComponents::AUDIO);

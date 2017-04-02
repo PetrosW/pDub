@@ -25,8 +25,7 @@ Window_Video_t::Window_Video_t(QWidget *parent) : QWidget(parent), Window_Contro
     sliderEditorSeek = false;
     isPlayingSliderPress = false;
     isPlaying = false;
-
-
+    IsFullScreen = false;
 }
 
 void Window_Video_t::setWindowEditorPtr(Window_Editor_t *Window_Editor)
@@ -95,6 +94,12 @@ void Window_Video_t::createUi() {
     ButtonSeekForward->setMaximumWidth(50);
     connect(ButtonSeekForward, &QPushButton::clicked, this, &Window_Video_t::seekForward);
     LayoutVideoControl->addWidget(ButtonSeekForward, 0, 3);
+
+    ButtonFullScreen = new QPushButton("FullScreen", this);
+    ButtonFullScreen->setMaximumWidth(100);
+    connect(ButtonFullScreen, &QPushButton::clicked, this, &Window_Video_t::fullScreenVideo);
+    ButtonFullScreen->setEnabled(false);
+    LayoutVideoControl->addWidget(ButtonFullScreen, 0, 4);
 
     m_preview = new QtAV::VideoPreviewWidget(this);
     //m_preview->setWindowFlags(m_preview->windowFlags() |Qt::FramelessWindowHint|Qt::WindowStaysOnTopHint);
@@ -224,6 +229,17 @@ void Window_Video_t::sliderPressRelease() {
         isPlaying = Player->isPaused();
     }
 }
+
+void Window_Video_t::fullScreenVideo() {
+    if (IsFullScreen) {
+        this->showNormal();
+    }
+    else {
+        qDebug() << "full";
+    }
+    IsFullScreen = !IsFullScreen;
+}
+
 
 // moc nefunguje
 void Window_Video_t::videoStopEnd(){
