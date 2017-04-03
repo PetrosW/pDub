@@ -5,6 +5,11 @@ MixingDevice_t::MixingDevice_t(QMap<quint32, QMap<quint32, Record *> > *Records_
     : QIODevice(nullptr), FilePath(FilePath), Records_Map(Records_Map), SamplePosition(0), BufferSize(0), Records_PlanIndex(-1)
 {}
 
+MixingDevice_t::~MixingDevice_t()
+{
+    if (Buffer_Tmp) free(Buffer_Tmp);
+    if (Buffer_Result) free(Buffer_Result);
+}
 
 qint64 MixingDevice_t::writeData(const char *, qint64)
 {
@@ -16,19 +21,21 @@ qint64 MixingDevice_t::readData(char *Data, qint64 Maxlen)
     qDebug() << "Maxlen: " << Maxlen;
     if (!BufferSize)
     {
-        BufferSize = (Maxlen >> 1);
+        BufferSize = Maxlen;
 
-        Buffer_Result.resize(BufferSize);
-        Buffer_Tmp.resize(BufferSize);
+        Buffer_Result = static_cast<quint8 *>(aligned_alloc(32, std::ceil(Maxlen / 32.0) * 32) );
+        Buffer_Tmp = static_cast<char *>(aligned_alloc(32, std::ceil(Maxlen / 32.0) * 32) );
 
-        Buffer_ResultPtr = reinterpret_cast<quint8 *>(&Buffer_Result[0]);
-        Buffer_TmpPtr = reinterpret_cast<char *>(&Buffer_Tmp[0]);
+        Buffer_ResultSampleFormat = reinterpret_cast<qint16 *>(Buffer_Result);
+        Buffer_TmpSampleFormat = reinterpret_cast<qint16 *>(Buffer_Tmp);
 
         emit initStartComplete();
         return 0;
     }
-
-    memset(Buffer_ResultPtr, 0, Maxlen);
+    
+    qint32 Maxlen_Samples = (Maxlen >> 1);
+    
+    memset(Buffer_Result, 0, Maxlen);
     SamplePosition += (Maxlen >> 2);
 
     // handle new
@@ -40,13 +47,25 @@ qint64 MixingDevice_t::readData(char *Data, qint64 Maxlen)
             quint32 ZeroLength = ( (Records_Plan[Records_PlanIndex].StartingSample - (SamplePosition - (Maxlen >> 2) ) ) << 2);
             quint32 DataLength = ( (SamplePosition - Records_Plan[Records_PlanIndex].StartingSample) << 2);
 
-            memset(Buffer_TmpPtr, 0, ZeroLength);
-            qint64 BytesRead = Records_Plan[Records_PlanIndex].WavFile.read(Buffer_TmpPtr + ZeroLength, DataLength);
+            memset(Buffer_Tmp, 0, ZeroLength);
+            qint64 BytesRead = Records_Plan[Records_PlanIndex].WavFile.read(Buffer_Tmp + ZeroLength, DataLength);
 
-            if (BytesRead < DataLength) memset(Buffer_TmpPtr + ZeroLength + BytesRead, 0, DataLength - BytesRead);
+            if (BytesRead < DataLength) memset(Buffer_Tmp + ZeroLength + BytesRead, 0, DataLength - BytesRead);
             else Records_New.push_back(&Records_Plan[Records_PlanIndex]);
 
-            if ( !(Records_Plan[Records_PlanIndex].RecordPtr->isMuted() ) ) Buffer_Result += Buffer_Tmp;
+            if ( !(Records_Plan[Records_PlanIndex].RecordPtr->isMuted() ) )
+            {
+                float Volume = Records_Plan[Records_PlanIndex].RecordPtr->VolumeNormalized();
+                
+                for (qint32 i = 0; i < Maxlen_Samples; i++)
+                {
+                    qint32 ProcessedSample = (Buffer_TmpSampleFormat[i] * Volume) + Buffer_ResultSampleFormat[i];
+                    
+                    if (ProcessedSample < float(INT16_MIN) ) Buffer_ResultSampleFormat[i] = INT16_MIN;
+                    else if (ProcessedSample > float(INT16_MAX) ) Buffer_ResultSampleFormat[i] = INT16_MAX;
+                    else Buffer_ResultSampleFormat[i] = ProcessedSample;
+                }
+            }
             Records_PlanIndex++;
         }
 
@@ -56,14 +75,26 @@ qint64 MixingDevice_t::readData(char *Data, qint64 Maxlen)
     // Read and combine samples from active records
     for (auto Track = Records_Active.begin(); Track != Records_Active.end(); Track++)
     {
-        qint64 BytesRead = (*Track)->WavFile.read(Buffer_TmpPtr, Maxlen);
+        qint64 BytesRead = (*Track)->WavFile.read(Buffer_Tmp, Maxlen);
         if (BytesRead < Maxlen)
         {
-            memset(Buffer_TmpPtr + BytesRead, 0, Maxlen - BytesRead);
+            memset(Buffer_Tmp + BytesRead, 0, Maxlen - BytesRead);
             Records_Finished.push_back(Track.key() );
         }
         
-        if ( !( (*Track)->RecordPtr->isMuted() ) ) Buffer_Result += Buffer_Tmp;
+        if ( !( (*Track)->RecordPtr->isMuted() ) )
+        {
+            float Volume = (*Track)->RecordPtr->VolumeNormalized();
+                
+            for (qint32 i = 0; i < Maxlen_Samples; i++)
+            {
+                qint32 ProcessedSample = (Buffer_TmpSampleFormat[i] * Volume) + Buffer_ResultSampleFormat[i];
+                
+                if (ProcessedSample < float(INT16_MIN) ) Buffer_ResultSampleFormat[i] = INT16_MIN;
+                else if (ProcessedSample > float(INT16_MAX) ) Buffer_ResultSampleFormat[i] = INT16_MAX;
+                else Buffer_ResultSampleFormat[i] = ProcessedSample;
+            }
+        }
     }
 
     // Remove finished records from active map
@@ -74,7 +105,7 @@ qint64 MixingDevice_t::readData(char *Data, qint64 Maxlen)
     for (auto Track: Records_New) Records_Active.insert(Track->RecordPtr->Id(), Track);
     Records_New.clear();
 
-    memcpy(Data, Buffer_ResultPtr, Maxlen);
+    memcpy(Data, Buffer_Result, Maxlen);
     return Maxlen;
 }
 

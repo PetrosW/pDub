@@ -1,7 +1,8 @@
 #ifndef MIXING_DEVICE_HPP
 #define MIXING_DEVICE_HPP
 
-#include <valarray>
+#include <cstdlib>
+#include <cstdint>
 #include <vector>
 
 #include <QFile>
@@ -33,6 +34,7 @@ class MixingDevice_t : public QIODevice
 
     public:
         MixingDevice_t(QMap<quint32, QMap<quint32, Record *> > *Records_Map, QString &FilePath);
+        ~MixingDevice_t();
         void seek(quint64 SamplePos);
         void planUpdate();
         void planClear();
@@ -51,10 +53,10 @@ class MixingDevice_t : public QIODevice
         std::vector<quint32> Records_Finished;
         quint64 SamplePosition;
         quint64 BufferSize;
-        std::valarray<qint16> Buffer_Result;
-        std::valarray<qint16> Buffer_Tmp;
-        quint8 *Buffer_ResultPtr;
-        char *Buffer_TmpPtr;
+        quint8 *Buffer_Result;
+        char *Buffer_Tmp;
+        qint16 *Buffer_ResultSampleFormat;
+        qint16 *Buffer_TmpSampleFormat;
         qint16 Records_PlanIndex;
 
     signals:

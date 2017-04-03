@@ -51,7 +51,7 @@ class Window_Video_t : public QWidget
 
         QPushButton *ButtonDockWindowVideo;
 
-        boolean IsFullScreen;
+        bool IsFullScreen;
 
 
 
