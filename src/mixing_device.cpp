@@ -22,9 +22,11 @@ qint64 MixingDevice_t::readData(char *Data, qint64 Maxlen)
     if (!BufferSize)
     {
         BufferSize = Maxlen;
+        Buffer_TmpVector.reserve(Maxlen);
+        Buffer_ResultVector.reserve(Maxlen);
 
-        Buffer_Result = static_cast<quint8 *>(aligned_alloc(32, std::ceil(Maxlen / 32.0) * 32) );
-        Buffer_Tmp = static_cast<char *>(aligned_alloc(32, std::ceil(Maxlen / 32.0) * 32) );
+        Buffer_Result = &Buffer_ResultVector.front();
+        Buffer_Tmp = &Buffer_TmpVector.front();
 
         Buffer_ResultSampleFormat = reinterpret_cast<qint16 *>(Buffer_Result);
         Buffer_TmpSampleFormat = reinterpret_cast<qint16 *>(Buffer_Tmp);
@@ -32,9 +34,9 @@ qint64 MixingDevice_t::readData(char *Data, qint64 Maxlen)
         emit initStartComplete();
         return 0;
     }
-    
+
     qint32 Maxlen_Samples = (Maxlen >> 1);
-    
+
     memset(Buffer_Result, 0, Maxlen);
     SamplePosition += (Maxlen >> 2);
 
@@ -56,11 +58,11 @@ qint64 MixingDevice_t::readData(char *Data, qint64 Maxlen)
             if ( !(Records_Plan[Records_PlanIndex].RecordPtr->isMuted() ) )
             {
                 float Volume = Records_Plan[Records_PlanIndex].RecordPtr->VolumeNormalized();
-                
+
                 for (qint32 i = 0; i < Maxlen_Samples; i++)
                 {
                     qint32 ProcessedSample = (Buffer_TmpSampleFormat[i] * Volume) + Buffer_ResultSampleFormat[i];
-                    
+
                     if (ProcessedSample < float(INT16_MIN) ) Buffer_ResultSampleFormat[i] = INT16_MIN;
                     else if (ProcessedSample > float(INT16_MAX) ) Buffer_ResultSampleFormat[i] = INT16_MAX;
                     else Buffer_ResultSampleFormat[i] = ProcessedSample;
@@ -71,7 +73,7 @@ qint64 MixingDevice_t::readData(char *Data, qint64 Maxlen)
 
         if (Records_PlanIndex == Records_Count) Records_PlanIndex = -1;
     }
-    
+
     // Read and combine samples from active records
     for (auto Track = Records_Active.begin(); Track != Records_Active.end(); Track++)
     {
@@ -81,15 +83,15 @@ qint64 MixingDevice_t::readData(char *Data, qint64 Maxlen)
             memset(Buffer_Tmp + BytesRead, 0, Maxlen - BytesRead);
             Records_Finished.push_back(Track.key() );
         }
-        
+
         if ( !( (*Track)->RecordPtr->isMuted() ) )
         {
             float Volume = (*Track)->RecordPtr->VolumeNormalized();
-                
+
             for (qint32 i = 0; i < Maxlen_Samples; i++)
             {
                 qint32 ProcessedSample = (Buffer_TmpSampleFormat[i] * Volume) + Buffer_ResultSampleFormat[i];
-                
+
                 if (ProcessedSample < float(INT16_MIN) ) Buffer_ResultSampleFormat[i] = INT16_MIN;
                 else if (ProcessedSample > float(INT16_MAX) ) Buffer_ResultSampleFormat[i] = INT16_MAX;
                 else Buffer_ResultSampleFormat[i] = ProcessedSample;

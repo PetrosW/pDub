@@ -104,7 +104,7 @@ void Window_Main_t::dockingChange()
         //Layout_Horizontal->removeWidget(Window_Video_Ptr);
         Window_Control_Ptr->ButtonDockWindowVideo->setText("Dock Video");
         Window_Video_Ptr->setParent(nullptr);
-        Window_Video_Ptr->setWindowFlags(Qt::Tool | Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowStaysOnTopHint);
+        Window_Video_Ptr->setWindowFlags(Qt::Window | Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowStaysOnTopHint | Qt::WindowMaximizeButtonHint);
         Window_Video_Ptr->ButtonFullScreen->setEnabled(true);
         Window_Video_Ptr->show();
     }
@@ -145,6 +145,7 @@ void Window_Main_t::newProject(QString projectName, QString videoFilePath, QStri
     }
     Window_Editor_Ptr->MapTimeRecord.clear();
     Window_Editor_Ptr->m_ffmpeg->convertInputAudio(videoFilePath, Window_Control_Ptr->RecordPath() + "/record0.wav");
+    qDebug() << "Player position: " << Window_Video_Ptr->getPlayerPosition();
     Window_Editor_Ptr->addNewRecordObject(Window_Control_Ptr->NextRecordId, 0, 0, "record0.wav", 0, 100);
     Window_Control_Ptr->NextRecordId++;
 }
@@ -320,5 +321,4 @@ void Window_Main_t::importAudio() {
     qDebug() << "2";
     Window_Editor_Ptr->addNewRecordObject(Window_Control_Ptr->NextRecordId, Window_Video_Ptr->getPlayerPosition(), 0, "record" + QString::number(Window_Control_Ptr->NextRecordId) + ".wav", 1, 100);
     qDebug() << "3";
-    Window_Control_Ptr->NextRecordId++;
 }

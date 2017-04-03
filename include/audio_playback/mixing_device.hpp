@@ -1,7 +1,6 @@
 #ifndef MIXING_DEVICE_HPP
 #define MIXING_DEVICE_HPP
 
-#include <cstdlib>
 #include <cstdint>
 #include <vector>
 
@@ -53,6 +52,8 @@ class MixingDevice_t : public QIODevice
         std::vector<quint32> Records_Finished;
         quint64 SamplePosition;
         quint64 BufferSize;
+        std::vector<char> Buffer_TmpVector;
+        std::vector<quint8> Buffer_ResultVector;
         quint8 *Buffer_Result;
         char *Buffer_Tmp;
         qint16 *Buffer_ResultSampleFormat;

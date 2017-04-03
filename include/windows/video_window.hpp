@@ -53,7 +53,7 @@ class Window_Video_t : public QWidget
 
         bool IsFullScreen;
 
-
+        uint32_t SavedPositionVideo;
 
         bool isPlayingSliderPress; // pomocna pro urcovani pauzi pred kliknutim na slider
         bool isPlaying;
@@ -76,11 +76,8 @@ class Window_Video_t : public QWidget
         void seekBackward();
         //void setVolume(int newVolume);
         void updateSilderTimeValue(qint64 newSliderPosition);
-        void updateVideoTimePositionSliderMove(int newPlayerTimePosition);
-        void updateVideoTimePositionSliderPressed();
-        void sliderPressRelease();
         void videoStopEnd();
-        void seekFinished();
+        void seekFinished(qint64 pos);
         void hidePreviewAfterSeek();
         void fullScreenVideo();
         void lol();
