@@ -1,7 +1,7 @@
 #include <record.hpp>
 
 Record::Record(uint32_t id, uint32_t startTime, uint32_t endTime, QString name, uint32_t rowPosition, uint32_t volume, QWidget *parent) :
-    m_Id(id), m_StartTime(startTime), m_EndTime(endTime), m_Name(name), m_Volume(volume), m_RowPosition(rowPosition), QWidget(parent)
+    QWidget(parent), m_Id(id), m_StartTime(startTime), m_EndTime(endTime), m_Name(name), m_RowPosition(rowPosition), m_Volume(volume)
 {
     qDebug() << "record object";
     qDebug() << parent;
