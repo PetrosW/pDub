@@ -33,22 +33,23 @@ void Window_Editor_t::setWindowVideoPtr(Window_Video_t *Window_Video)
 }
 
 void Window_Editor_t::createUi() {
+
+
     CheckBoxMuteRecords = new QCheckBox("Mute Records", this);
     ControlLayout->addWidget(CheckBoxMuteRecords, 0, 0, 1, 3);
 
-    LabelVideoTime = new QLabel("VideoTime: 00:00:00", this);
-    ControlLayout->addWidget(LabelVideoTime, 1, 0, 1, 3);
+
 
     LabelRecordStartTime = new QLabel("StarTime: 00:00:00.00", this);
-    ControlLayout->addWidget(LabelRecordStartTime, 2, 0, 1, 3);
+    ControlLayout->addWidget(LabelRecordStartTime, 1, 0, 1, 3);
 
     ButtonBackward = new QPushButton("<<", this);
-    ControlLayout->addWidget(ButtonBackward, 3, 0, 2, 1);
+    ControlLayout->addWidget(ButtonBackward, 2, 0, 2, 1);
     ButtonForward = new QPushButton(">>", this);
-    ControlLayout->addWidget(ButtonForward, 3, 2, 2, 1);
+    ControlLayout->addWidget(ButtonForward, 2, 2, 2, 1);
 
     LabelRecordEndTime = new QLabel("EndTime: 00:00:00.00", this);
-    ControlLayout->addWidget(LabelRecordEndTime, 4, 0, 1, 3);
+    ControlLayout->addWidget(LabelRecordEndTime, 3, 0, 1, 3);
 
     SliderRecordVolume = new QSlider(Qt::Horizontal, this);
 //    SliderRecordVolume->setMaximumWidth(100);
@@ -56,15 +57,15 @@ void Window_Editor_t::createUi() {
     SliderRecordVolume->setMaximum(100);
     SliderRecordVolume->setTickInterval(1);
     SliderRecordVolume->setValue(100);
-    ControlLayout->addWidget(SliderRecordVolume, 5, 0, 1, 3);
+    ControlLayout->addWidget(SliderRecordVolume, 4, 0, 1, 3);
     connect(SliderRecordVolume, &QSlider::valueChanged, this, &Window_Editor_t::setRecordVolume);
 
     ButtonSplit = new QPushButton("Split", this);
-    ControlLayout->addWidget(ButtonSplit, 6, 0, 1, 3);
+    ControlLayout->addWidget(ButtonSplit, 5, 0, 1, 3);
     ButtonMerge = new QPushButton("Merge", this);
-    ControlLayout->addWidget(ButtonMerge, 7, 0, 1, 3);
+    ControlLayout->addWidget(ButtonMerge, 6, 0, 1, 3);
     ButtonDelete = new QPushButton("Delete", this);
-    ControlLayout->addWidget(ButtonDelete, 8, 0, 1, 3);
+    ControlLayout->addWidget(ButtonDelete, 7, 0, 1, 3);
     connect(ButtonSplit, &QPushButton::clicked, this, &Window_Editor_t::splitRecord);
     connect(ButtonDelete, &QPushButton::clicked, this, &Window_Editor_t::deleteRecord);
 
@@ -194,6 +195,7 @@ void Window_Editor_t::setScrollAreaEditorTimeSliderValue(int value) {
 
 void Window_Editor_t::setSliderLinePositionFromVideo(qint64 pos) {
     SliderLine->move(pos/100, 0);
+    Window_Control_Ptr->updateLabelVideoTime(pos);
 }
 
 void Window_Editor_t::splitRecord() {

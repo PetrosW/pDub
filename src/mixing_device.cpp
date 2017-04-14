@@ -5,12 +5,6 @@ MixingDevice_t::MixingDevice_t(QMap<quint32, QMap<quint32, Record *> > *Records_
     : QIODevice(nullptr), FilePath(FilePath), Records_Map(Records_Map), SamplePosition(0), BufferSize(0), Records_PlanIndex(-1)
 {}
 
-MixingDevice_t::~MixingDevice_t()
-{
-    if (Buffer_Tmp) free(Buffer_Tmp);
-    if (Buffer_Result) free(Buffer_Result);
-}
-
 qint64 MixingDevice_t::writeData(const char *, qint64)
 {
     return 0;
@@ -18,7 +12,7 @@ qint64 MixingDevice_t::writeData(const char *, qint64)
 
 qint64 MixingDevice_t::readData(char *Data, qint64 Maxlen)
 {
-    qDebug() << "Maxlen: " << Maxlen;
+//    qDebug() << "Maxlen: " << Maxlen;
     if (!BufferSize)
     {
         BufferSize = Maxlen;

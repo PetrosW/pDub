@@ -3,6 +3,7 @@
 Window_Control_t::Window_Control_t(QWidget *parent) : QWidget(parent), Window_Editor_Ptr(nullptr), Window_Video_Ptr(nullptr)
 {
     NextRecordId = 0;
+    IsFullScreen = false;
 }
 
 //public
@@ -47,6 +48,18 @@ void Window_Control_t::createUi() {
     ButtonDockWindowVideo->setMaximumWidth(200);
     ControlLayout->addWidget(ButtonDockWindowVideo, 0, 0);
 
+    ButtonFullScreenVideo = new QPushButton("FullScreen", this);
+    ButtonFullScreenVideo->setMaximumWidth(200);
+    ControlLayout->addWidget(ButtonFullScreenVideo, 1, 0);
+    connect(ButtonFullScreenVideo, &QPushButton::clicked, this, &Window_Control_t::fullScreenVideo);
+
+    LabelVideoTime = new QLabel("VideoTime: 00:00:00.00", this);
+    ControlLayout->addWidget(LabelVideoTime, 2, 0);
+
+    ButtonPlayPause = new QPushButton("Play", this);
+    connect(ButtonPlayPause, &QPushButton::clicked, this, &Window_Control_t::play);
+    ButtonPlayPause->setMaximumWidth(200);
+    ControlLayout->addWidget(ButtonPlayPause, 3, 0);
 }
 
 void Window_Control_t::createAudioEngine(QMap<quint32, QMap<quint32, Record *> > *Records_Map)
@@ -79,6 +92,36 @@ void Window_Control_t::releaseAudioResources()
 
 void Window_Control_t::videoStopEnd() {
     VideoStop();
+}
+
+void Window_Control_t::play() {
+    ButtonPlayPause->setText("Pause");
+    disconnect(ButtonPlayPause, &QPushButton::clicked, this, &Window_Control_t::play);
+    connect(ButtonPlayPause, &QPushButton::clicked, this, &Window_Control_t::pause);
+    Window_Video_Ptr->play();
+}
+
+void Window_Control_t::pause() {
+    ButtonPlayPause->setText("Play");
+    disconnect(ButtonPlayPause, &QPushButton::clicked, this, &Window_Control_t::pause);
+    connect(ButtonPlayPause, &QPushButton::clicked, this, &Window_Control_t::play);
+    Window_Video_Ptr->pause();
+}
+
+void Window_Control_t::updateLabelVideoTime(qint64 pos) {
+    LabelVideoTime->setText("VideoTime: " + miliSecToTime(pos));
+}
+
+void Window_Control_t::fullScreenVideo() {
+    if (IsFullScreen) {
+        Window_Video_Ptr->showNormal();
+    }
+    else {
+        qDebug() << "full";
+        Window_Video_Ptr->showFullScreen();
+
+    }
+    IsFullScreen = !IsFullScreen;
 }
 
 //private slots

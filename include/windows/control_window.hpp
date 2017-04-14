@@ -47,11 +47,15 @@ class Window_Control_t : public QWidget
         void setTmpsPath(const QString &a) { m_TmpsPath = a; TmpsPathChanged(); }
 
         QPushButton *ButtonDockWindowVideo;
+        QPushButton *ButtonFullScreenVideo;
+
+        bool IsFullScreen;
 
         void createUi();
         void createAudioEngine(QMap<quint32, QMap<quint32, Record *> > *Records_Map);
         void updateAudioEngine();
         void releaseAudioResources();
+
 
         AudioPlayback_t *AudioPlayback;
 
@@ -64,6 +68,9 @@ class Window_Control_t : public QWidget
         QGridLayout *ControlLayout;
 
         void newMicrophone();
+
+        QPushButton *ButtonPlayPause;
+        QLabel *LabelVideoTime;
 
         QString m_ProjectName;
         QString m_VideoFilePath;
@@ -80,10 +87,16 @@ class Window_Control_t : public QWidget
         void VideoStop();
 
     public slots:
+        void play();
+        void pause();
         void videoStopEnd();
+        void updateLabelVideoTime(qint64 pos);
+        void fullScreenVideo();
+
 
     private slots:
         void updateAudioEngineFilePath();
+
 
 
 };

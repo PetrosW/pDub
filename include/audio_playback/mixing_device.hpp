@@ -33,7 +33,6 @@ class MixingDevice_t : public QIODevice
 
     public:
         MixingDevice_t(QMap<quint32, QMap<quint32, Record *> > *Records_Map, QString &FilePath);
-        ~MixingDevice_t();
         void seek(quint64 SamplePos);
         void planUpdate();
         void planClear();

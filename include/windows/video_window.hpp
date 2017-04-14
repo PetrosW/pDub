@@ -5,6 +5,7 @@
 #include <QtWidgets>
 #include <QtAV>
 #include <QtAVWidgets>
+#include <QShortcut>
 
 #include <common.hpp>
 #include <windows/control_window.hpp>
@@ -29,6 +30,8 @@ class Window_Video_t : public QWidget
 
         QPushButton *ButtonFullScreen;
 
+        void m_repaint();
+
     private:
         QString m_FileName;
 
@@ -47,7 +50,9 @@ class Window_Video_t : public QWidget
         QPushButton *ButtonSeekForward;
         QPushButton *ButtonSeekBackward;
 
-        QSlider *SliderVideoTime;
+        QShortcut *shortcutFullScreen;
+
+//        QSlider *SliderVideoTime;
 
         QPushButton *ButtonDockWindowVideo;
 
@@ -75,11 +80,10 @@ class Window_Video_t : public QWidget
         void seekForward();
         void seekBackward();
         //void setVolume(int newVolume);
-        void updateSilderTimeValue(qint64 newSliderPosition);
+        void updateLabelVideoTime(qint64 newPosition);
         void videoStopEnd();
         void seekFinished(qint64 pos);
         void hidePreviewAfterSeek();
-        void fullScreenVideo();
         void lol();
 };
 

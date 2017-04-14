@@ -45,16 +45,22 @@ void Record::mouseMoveEvent(QMouseEvent *event) {
     if(event->buttons() & Qt::LeftButton) {
         if (event->pos().y() > 50){
             QPoint movePoint(this->x(), this->y() + 50);
-            m_RowPosition++;
-            if (movePoint.y() < 0 || (movePoint.y() + this->height()) > parentWidget()->height())
+            if (movePoint.y() < 0 || (movePoint.y() + this->height()) > parentWidget()->height()) {
                 return;
+            }
+            else {
+                m_RowPosition++;
+            }
             this->move(movePoint);
         }
         else if (event->pos().y() < 0) {
             QPoint movePoint(this->x(), this->y() - 50);
-            m_RowPosition--;
-            if (movePoint.y() < 0 || (movePoint.y() + this->height()) > parentWidget()->height())
+            if (movePoint.y() < 0 || (movePoint.y() + this->height()) > parentWidget()->height()) {
                 return;
+            }
+            else {
+                m_RowPosition--;
+            }
             this->move(movePoint);
         }
         else {

@@ -105,17 +105,15 @@ void Window_Main_t::dockingChange()
         Window_Control_Ptr->ButtonDockWindowVideo->setText("Dock Video");
         Window_Video_Ptr->setParent(nullptr);
         Window_Video_Ptr->setWindowFlags(Qt::Window | Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowStaysOnTopHint | Qt::WindowMaximizeButtonHint);
-        Window_Video_Ptr->ButtonFullScreen->setEnabled(true);
         Window_Video_Ptr->show();
     }
     else
     {
-        Window_Video_Ptr->ButtonFullScreen->setEnabled(false);
         Window_Video_Ptr->setParent(this);
         Layout_Horizontal->addWidget(Window_Video_Ptr);
         Window_Control_Ptr->ButtonDockWindowVideo->setText("UnDock Video");
     }
-
+    Window_Video_Ptr->m_repaint();
     IsDocked = !IsDocked;
 }
 
