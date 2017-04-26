@@ -19,6 +19,7 @@ class SliderEditor : public QWidget
         QWidget *SliderLine;
 
         bool isPressedSliderClickArea;
+        qint64 dragMouseOffsetX;
 
     signals:
         void sliderLinePositionChanged(uint32_t pos);

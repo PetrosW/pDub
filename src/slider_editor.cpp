@@ -15,6 +15,7 @@ SliderEditor::SliderEditor(QWidget *parent) : QWidget(parent)
     SliderLine->setPalette(Pal);
 
     isPressedSliderClickArea = false;
+    dragMouseOffsetX = 0;
 }
 
 // private slots
@@ -39,8 +40,12 @@ void SliderEditor::setSliderLinePositionFromVideo(qint64 pos) {
 void SliderEditor::mouseMoveEvent(QMouseEvent *event) {
     if(event->buttons() & Qt::LeftButton) {
         if(isPressedSliderClickArea == true) {
-            SliderClickArea->move(event->pos().x(), 0);
-            SliderLine->move(event->pos().x()+5, 0);
+            qDebug() << this->width();
+            qDebug() << event->pos().x() + SliderLine->width();
+            if (event->pos().x() < 0 || (event->pos().x() + 1) > this->width())
+                return;
+            SliderClickArea->move(event->pos().x()-5, 0);
+            SliderLine->move(event->pos().x(), 0);
             sliderLinePositionChanged(SliderLine->x());
         }
     }
@@ -48,12 +53,13 @@ void SliderEditor::mouseMoveEvent(QMouseEvent *event) {
 
 void SliderEditor::mousePressEvent(QMouseEvent *event) {
     if(event->buttons() & Qt::LeftButton) {
+        dragMouseOffsetX = event->pos().x();
         if ((SliderClickArea->x() <= event->pos().x()) && ((SliderClickArea->x()+SliderClickArea->width()) >= event->pos().x())) {
             isPressedSliderClickArea = true;
         }
         else {
-            SliderClickArea->move(event->pos().x(), 0);
-            SliderLine->move(event->pos().x()+5, 0);
+            SliderClickArea->move(event->pos().x()-5, 0);
+            SliderLine->move(event->pos().x(), 0);
             sliderLinePositionChanged(SliderLine->x());
         }
     }

@@ -199,26 +199,22 @@ void Window_Editor_t::setSliderLinePositionFromVideo(qint64 pos) {
 }
 
 void Window_Editor_t::splitRecord() {
-    Record *splitRec;
 
     Window_Control_Ptr->releaseAudioResources();
 
     // TODO: upravit !
+    Record *splitRec = SelectedRecord;
+
+    uint32_t pos = (SliderLine->x()*100) - splitRec->StartTime();
+    m_ffmpeg->splitTrack(splitRec, Window_Control_Ptr->RecordPath(), Window_Control_Ptr->NextRecordId, pos);
+
     for (auto it = MapTimeRecord.begin(); it != MapTimeRecord.end();) {
         if (it.value().contains(SelectedRecordId)) {
-            splitRec = it.value()[SelectedRecordId];
-            uint32_t pos = (SliderLine->x()*100) - splitRec->StartTime();
-            m_ffmpeg->splitTrack(splitRec,Window_Control_Ptr->RecordPath(),Window_Control_Ptr->NextRecordId,pos);
-            addNewRecordObject(Window_Control_Ptr->NextRecordId, splitRec->StartTime(), 0, "record"+QString::number(Window_Control_Ptr->NextRecordId)+".wav", splitRec->RowPosition(), splitRec->Volume());
-            addNewRecordObject(Window_Control_Ptr->NextRecordId, splitRec->StartTime()+pos+1, 0, "record"+QString::number(Window_Control_Ptr->NextRecordId)+".wav", splitRec->RowPosition(), splitRec->Volume());
-            delete splitRec;
+            delete it.value()[SelectedRecordId];
             it.value().remove(SelectedRecordId);
-            SelectedRecordId = Window_Control_Ptr->NextRecordId - 1;
-
             if (it.value().isEmpty()) {
                 MapTimeRecord.erase(it);
             }
-
             break;
         }
         else {
@@ -226,12 +222,9 @@ void Window_Editor_t::splitRecord() {
         }
     }
 
-    foreach (auto map, MapTimeRecord) {
-        foreach(Record *item, map) {
-            qDebug() << item->Name();
-        }
-    }
-    Window_Control_Ptr->updateAudioEngine();
+    addNewRecordObject(Window_Control_Ptr->NextRecordId, splitRec->StartTime(), 0, "record"+QString::number(Window_Control_Ptr->NextRecordId)+".wav", splitRec->RowPosition(), splitRec->Volume());
+    addNewRecordObject(Window_Control_Ptr->NextRecordId, splitRec->StartTime()+pos+1, 0, "record"+QString::number(Window_Control_Ptr->NextRecordId)+".wav", splitRec->RowPosition(), splitRec->Volume());
+
 }
 
 void Window_Editor_t::deleteRecord() {
