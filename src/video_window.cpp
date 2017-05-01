@@ -137,7 +137,6 @@ void Window_Video_t::seekForward() {
 
 // moc nefunguje
 void Window_Video_t::videoStopEnd(){
-    ButtonPlay->setText("Play");
     isPlaying = false;
     Player->play(m_FileName);
 }

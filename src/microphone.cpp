@@ -79,9 +79,11 @@ void Microphone::startRecord() {
 }
 
 void Microphone::stopRecord() {
+    qDebug() << "stop";
     AudioRecorder->stop();
-    Window_Video_Ptr->pause();
+    Window_Control_Ptr->pause();
     EndTime = Window_Video_Ptr->getPlayerPosition();
+    qDebug() << "EndTime: " << EndTime;
     Window_Control_Ptr->AudioPlayback->seek(EndTime);
     LabelEndTime->setText(QString("End time: %1").arg(miliSecToTime(EndTime)));
     TimerRecord->stop();

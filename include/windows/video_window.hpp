@@ -46,15 +46,11 @@ class Window_Video_t : public QWidget
         QtAV::VideoOutput *VideoOutput;
         QtAV::AVPlayer *Player;
 
-        QPushButton *ButtonPlay;
-        QPushButton *ButtonSeekForward;
-        QPushButton *ButtonSeekBackward;
 
         QShortcut *shortcutFullScreen;
 
 //        QSlider *SliderVideoTime;
 
-        QPushButton *ButtonDockWindowVideo;
 
         bool IsFullScreen;
 

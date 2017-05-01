@@ -119,6 +119,7 @@ void Window_Main_t::dockingChange()
 
 void Window_Main_t::closeEvent(QCloseEvent *event)
 {
+
     if (!IsDocked) Window_Video_Ptr->close();
     QMainWindow::closeEvent(event);
 }

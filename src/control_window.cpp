@@ -91,6 +91,9 @@ void Window_Control_t::releaseAudioResources()
 //public slots
 
 void Window_Control_t::videoStopEnd() {
+    ButtonPlayPause->setText("Play");
+    disconnect(ButtonPlayPause, &QPushButton::clicked, this, &Window_Control_t::pause);
+    connect(ButtonPlayPause, &QPushButton::clicked, this, &Window_Control_t::play);
     VideoStop();
 }
 

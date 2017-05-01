@@ -298,8 +298,10 @@ void Window_Editor_t::addNewRecordObject(uint32_t RecordId, uint32_t StartTime, 
     connect(record, &Record::onMouseMove, this, &Window_Editor_t::recordMoveSelected);
     connect(record, &Record::onMousePress, this, &Window_Editor_t::recordSelected);
     record->select();
+    qDebug() << "after select";
     Window_Control_Ptr->NextRecordId++;
     Window_Control_Ptr->updateAudioEngine();
+    qDebug() << "after update";
 
 }
 
