@@ -50,6 +50,7 @@ Window_Main_t::Window_Main_t(QWidget *Parent_Ptr) : QMainWindow(Parent_Ptr), Lay
     Window_Control_Ptr->setDeafaultMicrophone();
 
     connect(Window_Control_Ptr->ButtonDockWindowVideo, &QPushButton::clicked, this, &Window_Main_t::dockingChange);
+    connect(Window_Editor_Ptr, &Window_Editor_t::s_newRecordAdded, this, &Window_Main_t::saveProject);
 
     show();
 }
@@ -143,6 +144,7 @@ void Window_Main_t::newProject(QString projectName, QString videoFilePath, QStri
         map.clear();
     }
     Window_Editor_Ptr->MapTimeRecord.clear();
+    Window_Editor_Ptr->cleanSelect();
     Window_Editor_Ptr->m_ffmpeg->convertInputAudio(videoFilePath, Window_Control_Ptr->RecordPath() + "/record0.wav");
     qDebug() << "Player position: " << Window_Video_Ptr->getPlayerPosition();
     Window_Editor_Ptr->addNewRecordObject(Window_Control_Ptr->NextRecordId, 0, 0, "record0.wav", 0, 100);
@@ -178,6 +180,7 @@ void Window_Main_t::loadProject() {
         map.clear();
     }
     Window_Editor_Ptr->MapTimeRecord.clear();
+    Window_Editor_Ptr->cleanSelect();
     //listOfRecords.clear(); // čištění při opětovném nahrávání
     QXmlStreamReader xmlReader(&file);
     xmlReader.readNextStartElement();  //start <pDab>

@@ -78,3 +78,7 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+qcustomplot-source/changelog.txt
+qcustomplot-source/qcustomplot.cpp
+qcustomplot-source/qcustomplot.h
+qcustomplot-source/GPL.txt

@@ -36,6 +36,8 @@ class Window_Editor_t : public QWidget
         void setAfterVideoLoad(qint64 duration);
         void createUi();
 
+        void cleanSelect();
+
     private:
 
         QWidget *MainWidget;
@@ -64,6 +66,7 @@ class Window_Editor_t : public QWidget
         QScrollBar *ScrollBarWorkPlaceHorizontal;
 
         QSlider *SliderRecordVolume;
+        QLabel *LabelRecordVolume;
 
 
         QPushButton *ButtonDelete;
@@ -85,6 +88,7 @@ class Window_Editor_t : public QWidget
 
     signals:
         void sliderLinePositionChanged(uint32_t pos);
+        void s_newRecordAdded();
 
     private slots:
         void addRow();

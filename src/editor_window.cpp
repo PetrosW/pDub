@@ -39,7 +39,6 @@ void Window_Editor_t::createUi() {
     ControlLayout->addWidget(CheckBoxMuteRecords, 0, 0, 1, 3);
 
 
-
     LabelRecordStartTime = new QLabel("StarTime: 00:00:00.00", this);
     ControlLayout->addWidget(LabelRecordStartTime, 1, 0, 1, 3);
 
@@ -57,8 +56,11 @@ void Window_Editor_t::createUi() {
     SliderRecordVolume->setMaximum(100);
     SliderRecordVolume->setTickInterval(1);
     SliderRecordVolume->setValue(100);
-    ControlLayout->addWidget(SliderRecordVolume, 4, 0, 1, 3);
+    ControlLayout->addWidget(SliderRecordVolume, 4, 0, 1, 2);
     connect(SliderRecordVolume, &QSlider::valueChanged, this, &Window_Editor_t::setRecordVolume);
+    LabelRecordVolume = new QLabel("100", this);
+    LabelRecordVolume->setAlignment(Qt::AlignRight);
+    ControlLayout->addWidget(LabelRecordVolume, 4, 2, 1, 1);
 
     ButtonSplit = new QPushButton("Split", this);
     ControlLayout->addWidget(ButtonSplit, 5, 0, 1, 3);
@@ -297,15 +299,17 @@ void Window_Editor_t::addNewRecordObject(uint32_t RecordId, uint32_t StartTime, 
     connect(record, &Record::relocateByMouseMove, this, &Window_Editor_t::relocateRecordInMap);
     connect(record, &Record::onMouseMove, this, &Window_Editor_t::recordMoveSelected);
     connect(record, &Record::onMousePress, this, &Window_Editor_t::recordSelected);
+    qDebug() << "pre select";
     record->select();
     qDebug() << "after select";
     Window_Control_Ptr->NextRecordId++;
     Window_Control_Ptr->updateAudioEngine();
     qDebug() << "after update";
-
+    s_newRecordAdded();
 }
 
 void Window_Editor_t::recordSelected(Record* RecordPointer, uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name, uint32_t Volume) {
+    qDebug() << SelectedRecord;
     if (SelectedRecord != NULL) {
         SelectedRecord->deselect();
     }
@@ -314,10 +318,17 @@ void Window_Editor_t::recordSelected(Record* RecordPointer, uint32_t RecordId, u
     LabelRecordEndTime->setText("EndTime: " + miliSecToTime(EndTime));
     LabelRecordStartTime->setText("StartTime: " + miliSecToTime(StartTime));
     SliderRecordVolume->setValue(Volume);
+    LabelRecordVolume->setText(QString::number(SliderRecordVolume->value()));
+}
+
+void Window_Editor_t::cleanSelect() {
+    SelectedRecord = NULL;
 }
 
 void Window_Editor_t::setRecordVolume() {
-    SelectedRecord->setVolume(uint32_t(SliderRecordVolume->value()));
+    LabelRecordVolume->setText(QString::number(SliderRecordVolume->value()));
+    if (SelectedRecord)
+        SelectedRecord->setVolume(uint32_t(SliderRecordVolume->value()));
 }
 
 void Window_Editor_t::recordMoveSelected(uint32_t RecordId, uint32_t StartTime, uint32_t EndTime, QString Name) {
