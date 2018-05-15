@@ -94,6 +94,8 @@ void Window_Control_t::videoStopEnd() {
     ButtonPlayPause->setText("Play");
     disconnect(ButtonPlayPause, &QPushButton::clicked, this, &Window_Control_t::pause);
     connect(ButtonPlayPause, &QPushButton::clicked, this, &Window_Control_t::play);
+    AudioPlayback->pause();
+    AudioPlayback->seek(0);
     VideoStop();
 }
 

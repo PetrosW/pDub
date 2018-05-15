@@ -73,10 +73,7 @@ class Window_Video_t : public QWidget
 
     private slots:
         void playInit();
-        void seekForward();
-        void seekBackward();
         //void setVolume(int newVolume);
-        void updateLabelVideoTime(qint64 newPosition);
         void videoStopEnd();
         void seekFinished(qint64 pos);
         void hidePreviewAfterSeek();

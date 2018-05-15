@@ -64,13 +64,10 @@ void Window_Video_t::firstPlay(QString FileName) {
     m_FileName = FileName;
     Player->audio()->setVolume(0.0);
     connect(Player, &QtAV::AVPlayer::seekFinished, this, &Window_Video_t::hidePreviewAfterSeek);
-    Player->play(FileName);
+    Player->play(m_FileName);
 }
 
 uint32_t Window_Video_t::getPlayerPosition() {
-    qDebug() << "Player state: " << Player->state();
-    qDebug() << "Player media status: " << Player->mediaStatus();
-    qDebug() << "Player in position: " << Player->position();
     return uint32_t(Player->position());
 }
 
@@ -122,19 +119,6 @@ void Window_Video_t::playInit() {
 }
 
 
-void Window_Video_t::updateLabelVideoTime(qint64 newPosition) {
-    qDebug() << "222  Player->position(): " << Player->position();
-}
-
-void Window_Video_t::seekBackward() {
-    Player->seek(Player->position() - 5000);
-}
-
-void Window_Video_t::seekForward() {
-    Player->seek(Player->position() + 5000);
-}
-
-
 // moc nefunguje
 void Window_Video_t::videoStopEnd(){
     isPlaying = false;
@@ -142,7 +126,6 @@ void Window_Video_t::videoStopEnd(){
 }
 
 void Window_Video_t::m_repaint(){
-    qDebug() << "update";
     resize(640,360);
     updateGeometry();
     VideoOutput->widget()->updateGeometry();

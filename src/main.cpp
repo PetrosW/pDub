@@ -7,6 +7,7 @@ int main(int argc, char *argv[])
 	try
 	{
         //QtAV::Widgets::registerRenderers();
+        qDebug() << "start";
 		PDub Application(argc, argv);
 		return Application.exec();
 	}
